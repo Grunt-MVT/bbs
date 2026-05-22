@@ -1,0 +1,20 @@
+[package]
+name = "bbs_ffi"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "bbs_ffi"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+bbs_plus = { git = "https://github.com/docknetwork/crypto.git", rev = "224f195bb8babc2d0de5256135120e0aca9fbd19" }
+dock_crypto_utils = { git = "https://github.com/docknetwork/crypto.git", rev = "224f195bb8babc2d0de5256135120e0aca9fbd19" }
+schnorr_pok = { git = "https://github.com/docknetwork/crypto.git", rev = "224f195bb8babc2d0de5256135120e0aca9fbd19" }
+ark-bls12-381 = { version = "0.4", default-features = false, features = ["curve"] }
+ark-std = { version = "0.4", default-features = false }
+ark-serialize = { version = "0.4", default-features = false, features = ["derive"] }
+blake2 = { version = "0.10", default-features = false }
+rand = "0.8"
