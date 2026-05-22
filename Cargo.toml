@@ -1,11 +1,11 @@
 [package]
-name = "bbs_ffi"
+name = "libbbsplus"
 version = "0.1.0"
 edition = "2021"
 publish = false
 
 [lib]
-name = "bbs_ffi"
+name = "bbsplus"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 

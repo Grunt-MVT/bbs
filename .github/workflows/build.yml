@@ -1,0 +1,30 @@
+name: Build libbbsplus
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  linux-amd64:
+    name: Linux AMD64
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build, test, and package in Docker
+        run: make docker-artifacts
+
+      - name: Upload Linux AMD64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libbbsplus-linux-amd64
+          path: dist/libbbsplus-linux-amd64.tar.gz
+          if-no-files-found: error

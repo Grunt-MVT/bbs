@@ -164,20 +164,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
-name = "bbs_ffi"
-version = "0.1.0"
-dependencies = [
- "ark-bls12-381",
- "ark-serialize",
- "ark-std",
- "bbs_plus",
- "blake2",
- "dock_crypto_utils",
- "rand",
- "schnorr_pok",
-]
-
-[[package]]
 name = "bbs_plus"
 version = "0.25.0"
 source = "git+https://github.com/docknetwork/crypto.git?rev=224f195bb8babc2d0de5256135120e0aca9fbd19#224f195bb8babc2d0de5256135120e0aca9fbd19"
@@ -505,6 +491,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb26cec98cce3a3d96cbb7bced3c4b16e3d13f27ec56dbd62cbc8f39cfb9d653"
 dependencies = [
  "cpufeatures",
+]
+
+[[package]]
+name = "libbbsplus"
+version = "0.1.0"
+dependencies = [
+ "ark-bls12-381",
+ "ark-serialize",
+ "ark-std",
+ "bbs_plus",
+ "blake2",
+ "dock_crypto_utils",
+ "rand",
+ "schnorr_pok",
 ]
 
 [[package]]

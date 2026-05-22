@@ -1,18 +1,26 @@
-FROM rust:1-bookworm
+FROM rust:1-bookworm AS base
 
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
+    build-essential \
     ca-certificates \
+    git \
+    golang-go \
+    make \
     && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-COPY . /app/bbs/
 
 WORKDIR /app/bbs
 
-RUN cargo build --release
+COPY Cargo.toml Cargo.lock Makefile ./
+COPY include ./include
+COPY src ./src
+COPY tests ./tests
 
-CMD ["bash", "-lc", "ls -lh target/release/libbbs_ffi.*"]
+FROM base AS ci
+
+RUN make ci
+
+FROM scratch AS artifacts
+
+COPY --from=ci /app/bbs/dist/libbbsplus-linux-amd64.tar.gz /libbbsplus-linux-amd64.tar.gz
