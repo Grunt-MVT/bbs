@@ -5,7 +5,8 @@ override CARGO_TARGET_DIR := $(ROOT_DIR)/target
 TARGET_DIR := $(CARGO_TARGET_DIR)/release
 DIST_DIR := $(ROOT_DIR)/dist
 ARTIFACT_NAME := libbbsplus-linux-amd64
-LINUX_SHARED_LIB := libbbsplus.so
+STATIC_LIB := libbbsplus.a
+GO_NATIVE_LINUX_AMD64_DIR := $(ROOT_DIR)/go/native/linux_amd64
 DOCKER_IMAGE ?= libbbsplus-ci
 
 .PHONY: test
@@ -17,27 +18,34 @@ build-release:
 	CARGO_TARGET_DIR="$(CARGO_TARGET_DIR)" cargo build --release
 
 .PHONY: test-go-ffi
-test-go-ffi: build-release
-	cd "$(ROOT_DIR)/go" && \
-		CGO_ENABLED=1 \
-		CGO_CFLAGS="-I$(ROOT_DIR)/include" \
-		CGO_LDFLAGS="-L$(TARGET_DIR) -lbbsplus" \
-		LD_LIBRARY_PATH="$(TARGET_DIR):$${LD_LIBRARY_PATH:-}" \
-		DYLD_LIBRARY_PATH="$(TARGET_DIR):$${DYLD_LIBRARY_PATH:-}" \
-		go test -v ./...
+test-go-ffi:
+	cd "$(ROOT_DIR)/go" && CGO_ENABLED=1 go test -v ./...
+
+.PHONY: sync-go-native-linux-amd64
+sync-go-native-linux-amd64: build-release
+	test "$$(uname -s)" = "Linux" && test "$$(uname -m)" = "x86_64" || \
+		(echo "sync-go-native-linux-amd64 must run on Linux/amd64; use make docker-sync-go-native-linux-amd64" && exit 1)
+	test -f "$(TARGET_DIR)/$(STATIC_LIB)" || \
+		(echo "missing $(TARGET_DIR)/$(STATIC_LIB)" && exit 1)
+	rm -rf "$(GO_NATIVE_LINUX_AMD64_DIR)"
+	mkdir -p "$(GO_NATIVE_LINUX_AMD64_DIR)/lib" "$(GO_NATIVE_LINUX_AMD64_DIR)/include"
+	cp "$(TARGET_DIR)/$(STATIC_LIB)" "$(GO_NATIVE_LINUX_AMD64_DIR)/lib/"
+	cp "$(ROOT_DIR)/include/bbs_ffi.h" "$(GO_NATIVE_LINUX_AMD64_DIR)/include/"
 
 .PHONY: package-linux-amd64
 package-linux-amd64: build-release
-	test -f "$(TARGET_DIR)/$(LINUX_SHARED_LIB)" || \
-		(echo "missing $(TARGET_DIR)/$(LINUX_SHARED_LIB); run this target on Linux/amd64 or use make docker-artifacts" && exit 1)
+	test "$$(uname -s)" = "Linux" && test "$$(uname -m)" = "x86_64" || \
+		(echo "package-linux-amd64 must run on Linux/amd64; use make docker-artifacts" && exit 1)
+	test -f "$(TARGET_DIR)/$(STATIC_LIB)" || \
+		(echo "missing $(TARGET_DIR)/$(STATIC_LIB); run this target on Linux/amd64 or use make docker-artifacts" && exit 1)
 	rm -rf "$(DIST_DIR)/$(ARTIFACT_NAME)" "$(DIST_DIR)/$(ARTIFACT_NAME).tar.gz"
 	mkdir -p "$(DIST_DIR)/$(ARTIFACT_NAME)/lib" "$(DIST_DIR)/$(ARTIFACT_NAME)/include"
-	cp "$(TARGET_DIR)/$(LINUX_SHARED_LIB)" "$(DIST_DIR)/$(ARTIFACT_NAME)/lib/"
+	cp "$(TARGET_DIR)/$(STATIC_LIB)" "$(DIST_DIR)/$(ARTIFACT_NAME)/lib/"
 	cp "$(ROOT_DIR)/include/bbs_ffi.h" "$(DIST_DIR)/$(ARTIFACT_NAME)/include/"
 	tar -C "$(DIST_DIR)" -czf "$(DIST_DIR)/$(ARTIFACT_NAME).tar.gz" "$(ARTIFACT_NAME)"
 
 .PHONY: ci
-ci: test test-go-ffi package-linux-amd64
+ci: test sync-go-native-linux-amd64 test-go-ffi package-linux-amd64
 
 .PHONY: docker-ci
 docker-ci:
@@ -48,3 +56,9 @@ docker-artifacts:
 	rm -rf "$(DIST_DIR)"
 	mkdir -p "$(DIST_DIR)"
 	docker buildx build --platform linux/amd64 --target artifacts --output type=local,dest="$(DIST_DIR)" "$(ROOT_DIR)"
+
+.PHONY: docker-sync-go-native-linux-amd64
+docker-sync-go-native-linux-amd64:
+	rm -rf "$(GO_NATIVE_LINUX_AMD64_DIR)"
+	mkdir -p "$(GO_NATIVE_LINUX_AMD64_DIR)"
+	docker buildx build --platform linux/amd64 --target go-native --output type=local,dest="$(GO_NATIVE_LINUX_AMD64_DIR)" "$(ROOT_DIR)"

@@ -1,3 +1,5 @@
+//go:build linux && amd64 && cgo
+
 package bbs_test
 
 import (

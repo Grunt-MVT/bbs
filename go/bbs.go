@@ -1,7 +1,11 @@
+//go:build linux && amd64 && cgo
+
 // Package bbs provides a Go wrapper for libbbsplus.
 package bbs
 
 /*
+#cgo linux,amd64 CFLAGS: -I${SRCDIR}/native/linux_amd64/include
+#cgo linux,amd64 LDFLAGS: ${SRCDIR}/native/linux_amd64/lib/libbbsplus.a -ldl -lm -lpthread
 #include "bbs_ffi.h"
 #include <stdlib.h>
 */

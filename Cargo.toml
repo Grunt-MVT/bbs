@@ -7,7 +7,7 @@ publish = false
 [lib]
 name = "bbsplus"
 path = "src/lib.rs"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["staticlib", "rlib"]
 
 [dependencies]
 bbs_plus = { git = "https://github.com/docknetwork/crypto.git", rev = "224f195bb8babc2d0de5256135120e0aca9fbd19" }

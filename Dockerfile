@@ -24,3 +24,7 @@ RUN make ci
 FROM scratch AS artifacts
 
 COPY --from=ci /app/bbs/dist/libbbsplus-linux-amd64.tar.gz /libbbsplus-linux-amd64.tar.gz
+
+FROM scratch AS go-native
+
+COPY --from=ci /app/bbs/go/native/linux_amd64/ /

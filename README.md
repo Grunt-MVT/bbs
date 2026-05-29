@@ -1,8 +1,8 @@
 # libbbsplus
 
-`libbbsplus` is a small FFI wrapper over Dock's BBS+ Rust library. It exposes a C ABI so services written in Go, or another language with C FFI support, can generate keys, sign and verify messages, and create and verify selective-disclosure proofs without binding directly to Dock's Rust types.
+`libbbsplus` is a small FFI wrapper over Dock's BBS+ Rust library. It exposes a C ABI and a Go package so services written in Go can generate keys, sign and verify messages, and create and verify selective-disclosure proofs without binding directly to Dock's Rust types.
 
-The shared library is built as `libbbsplus.so` on Linux. Public functions keep the `bbs_` prefix and are declared in [`include/bbs_ffi.h`](include/bbs_ffi.h).
+The Linux AMD64 Go package vendors a static native archive, so Go users do not need to pass cgo compiler/linker flags or configure `LD_LIBRARY_PATH`. Public native functions keep the `bbs_` prefix and are declared in [`include/bbs_ffi.h`](include/bbs_ffi.h).
 
 ## What It Exposes
 
@@ -17,13 +17,13 @@ All serialized cryptographic values use Dock/ark canonical compressed bytes. The
 
 ## Build Locally
 
-Run the Rust and Go FFI checks on your host:
+Run the Rust checks on your host:
 
 ```sh
-make ci
+make test
 ```
 
-Build and test in Docker for the Linux AMD64 target:
+Build and test the Linux AMD64 Rust and Go package in Docker:
 
 ```sh
 make docker-ci
@@ -46,12 +46,12 @@ It contains:
 ```text
 libbbsplus-linux-amd64/
   include/bbs_ffi.h
-  lib/libbbsplus.so
+  lib/libbbsplus.a
 ```
 
 ## Go Usage
 
-Use the Go wrapper module from this repository:
+On Linux AMD64 with cgo enabled, use the Go wrapper module from this repository without any extra cgo flags:
 
 ```go
 package main
@@ -81,19 +81,14 @@ func main() {
 }
 ```
 
-The Go module is a cgo wrapper around the native library, so builds still need the C header and shared library paths:
+The package includes its own cgo directives and bundled static native archive. A normal Go build is enough:
 
 ```sh
-CGO_CFLAGS="-I/path/to/libbbsplus/include" \
-CGO_LDFLAGS="-L/path/to/libbbsplus/lib -lbbsplus" \
-LD_LIBRARY_PATH=/path/to/libbbsplus/lib \
 go test ./...
 ```
 
-At runtime, make sure the dynamic linker can find `libbbsplus.so`:
+Because the native code is linked statically into the Go binary, there is no `libbbsplus.so` runtime lookup.
 
-```sh
-LD_LIBRARY_PATH=/path/to/libbbsplus/lib ./your-go-binary
-```
+This is still a cgo package, so `CGO_ENABLED=1` and a C linker are required. The bundled native archive currently targets Linux AMD64 only; other platforms need their own `go/native/<os>_<arch>` archive and cgo directives.
 
 See [`go`](go) for the wrapper package and an end-to-end test covering key generation, signing, signature verification, proof creation, and proof verification.
