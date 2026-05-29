@@ -13,9 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app/bbs
 
 COPY Cargo.toml Cargo.lock Makefile ./
+COPY go ./go
 COPY include ./include
 COPY src ./src
-COPY tests ./tests
 
 FROM base AS ci
 

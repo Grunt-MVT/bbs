@@ -18,7 +18,7 @@ build-release:
 
 .PHONY: test-go-ffi
 test-go-ffi: build-release
-	cd "$(ROOT_DIR)/tests/goffi" && \
+	cd "$(ROOT_DIR)/go" && \
 		CGO_ENABLED=1 \
 		CGO_CFLAGS="-I$(ROOT_DIR)/include" \
 		CGO_LDFLAGS="-L$(TARGET_DIR) -lbbsplus" \

@@ -51,21 +51,49 @@ libbbsplus-linux-amd64/
 
 ## Go Usage
 
-Link Go code with cgo against the header and shared library:
+Use the Go wrapper module from this repository:
 
 ```go
-/*
-#cgo CFLAGS: -I/path/to/libbbsplus/include
-#cgo LDFLAGS: -L/path/to/libbbsplus/lib -lbbsplus
-#include "bbs_ffi.h"
-*/
-import "C"
+package main
+
+import bbs "github.com/Grunt-MVT/bbs/go"
+
+func main() {
+	messages := [][]byte{
+		[]byte("alice"),
+		[]byte("US"),
+		[]byte("1716328800"),
+	}
+
+	keyPair, err := bbs.GenerateKeyPair(len(messages))
+	if err != nil {
+		panic(err)
+	}
+
+	signature, err := bbs.Sign(keyPair.Params, keyPair.SecretKey, messages)
+	if err != nil {
+		panic(err)
+	}
+
+	if err := bbs.VerifySignature(keyPair.Params, keyPair.PublicKey, messages, signature); err != nil {
+		panic(err)
+	}
+}
 ```
 
-At runtime, make sure the dynamic linker can find `libbbsplus.so`, for example:
+The Go module is a cgo wrapper around the native library, so builds still need the C header and shared library paths:
 
 ```sh
-LD_LIBRARY_PATH=/path/to/libbbsplus/lib go test ./...
+CGO_CFLAGS="-I/path/to/libbbsplus/include" \
+CGO_LDFLAGS="-L/path/to/libbbsplus/lib -lbbsplus" \
+LD_LIBRARY_PATH=/path/to/libbbsplus/lib \
+go test ./...
 ```
 
-See [`tests/goffi`](tests/goffi) for an end-to-end Go test that calls key generation, signing, signature verification, proof creation, proof verification, and cleanup through the FFI API.
+At runtime, make sure the dynamic linker can find `libbbsplus.so`:
+
+```sh
+LD_LIBRARY_PATH=/path/to/libbbsplus/lib ./your-go-binary
+```
+
+See [`go`](go) for the wrapper package and an end-to-end test covering key generation, signing, signature verification, proof creation, and proof verification.
