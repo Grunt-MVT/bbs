@@ -66,6 +66,11 @@ jobs:
           ref: ${{ github.ref_name }}
           fetch-depth: 0
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go/go.mod
+
       - name: Build vendored Go native library
         run: make sync-go-native-darwin-arm64
 
