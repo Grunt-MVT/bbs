@@ -1,4 +1,4 @@
-//go:build linux && amd64 && cgo
+//go:build ((linux && amd64) || (darwin && arm64)) && cgo
 
 package bbs_test
 

@@ -1,4 +1,4 @@
-//go:build !linux || !amd64 || !cgo
+//go:build !cgo || (!linux && !darwin) || (linux && !amd64) || (darwin && !arm64)
 
 package bbs
 
@@ -15,7 +15,7 @@ const (
 	StatusVerifyFailed int32 = 7
 )
 
-var errUnsupported = errors.New("libbbsplus: bundled native library is available only on linux/amd64 with cgo enabled")
+var errUnsupported = errors.New("libbbsplus: bundled native library is available only on linux/amd64 or darwin/arm64 with cgo enabled")
 
 // Error wraps a non-OK status returned by libbbsplus.
 type Error struct {

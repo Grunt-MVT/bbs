@@ -4,9 +4,11 @@ ROOT_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 override CARGO_TARGET_DIR := $(ROOT_DIR)/target
 TARGET_DIR := $(CARGO_TARGET_DIR)/release
 DIST_DIR := $(ROOT_DIR)/dist
-ARTIFACT_NAME := libbbsplus-linux-amd64
+LINUX_ARTIFACT_NAME := libbbsplus-linux-amd64
+DARWIN_ARTIFACT_NAME := libbbsplus-darwin-arm64
 STATIC_LIB := libbbsplus.a
 GO_NATIVE_LINUX_AMD64_DIR := $(ROOT_DIR)/go/native/linux_amd64
+GO_NATIVE_DARWIN_ARM64_DIR := $(ROOT_DIR)/go/native/darwin_arm64
 DOCKER_IMAGE ?= libbbsplus-ci
 
 .PHONY: test
@@ -32,17 +34,40 @@ sync-go-native-linux-amd64: build-release
 	cp "$(TARGET_DIR)/$(STATIC_LIB)" "$(GO_NATIVE_LINUX_AMD64_DIR)/lib/"
 	cp "$(ROOT_DIR)/include/bbs_ffi.h" "$(GO_NATIVE_LINUX_AMD64_DIR)/include/"
 
+.PHONY: sync-go-native-darwin-arm64
+sync-go-native-darwin-arm64: build-release
+	test "$$(uname -s)" = "Darwin" && test "$$(uname -m)" = "arm64" || \
+		(echo "sync-go-native-darwin-arm64 must run on Darwin/arm64" && exit 1)
+	test -f "$(TARGET_DIR)/$(STATIC_LIB)" || \
+		(echo "missing $(TARGET_DIR)/$(STATIC_LIB)" && exit 1)
+	rm -rf "$(GO_NATIVE_DARWIN_ARM64_DIR)"
+	mkdir -p "$(GO_NATIVE_DARWIN_ARM64_DIR)/lib" "$(GO_NATIVE_DARWIN_ARM64_DIR)/include"
+	cp "$(TARGET_DIR)/$(STATIC_LIB)" "$(GO_NATIVE_DARWIN_ARM64_DIR)/lib/"
+	cp "$(ROOT_DIR)/include/bbs_ffi.h" "$(GO_NATIVE_DARWIN_ARM64_DIR)/include/"
+
 .PHONY: package-linux-amd64
 package-linux-amd64: build-release
 	test "$$(uname -s)" = "Linux" && test "$$(uname -m)" = "x86_64" || \
 		(echo "package-linux-amd64 must run on Linux/amd64; use make docker-artifacts" && exit 1)
 	test -f "$(TARGET_DIR)/$(STATIC_LIB)" || \
 		(echo "missing $(TARGET_DIR)/$(STATIC_LIB); run this target on Linux/amd64 or use make docker-artifacts" && exit 1)
-	rm -rf "$(DIST_DIR)/$(ARTIFACT_NAME)" "$(DIST_DIR)/$(ARTIFACT_NAME).tar.gz"
-	mkdir -p "$(DIST_DIR)/$(ARTIFACT_NAME)/lib" "$(DIST_DIR)/$(ARTIFACT_NAME)/include"
-	cp "$(TARGET_DIR)/$(STATIC_LIB)" "$(DIST_DIR)/$(ARTIFACT_NAME)/lib/"
-	cp "$(ROOT_DIR)/include/bbs_ffi.h" "$(DIST_DIR)/$(ARTIFACT_NAME)/include/"
-	tar -C "$(DIST_DIR)" -czf "$(DIST_DIR)/$(ARTIFACT_NAME).tar.gz" "$(ARTIFACT_NAME)"
+	rm -rf "$(DIST_DIR)/$(LINUX_ARTIFACT_NAME)" "$(DIST_DIR)/$(LINUX_ARTIFACT_NAME).tar.gz"
+	mkdir -p "$(DIST_DIR)/$(LINUX_ARTIFACT_NAME)/lib" "$(DIST_DIR)/$(LINUX_ARTIFACT_NAME)/include"
+	cp "$(TARGET_DIR)/$(STATIC_LIB)" "$(DIST_DIR)/$(LINUX_ARTIFACT_NAME)/lib/"
+	cp "$(ROOT_DIR)/include/bbs_ffi.h" "$(DIST_DIR)/$(LINUX_ARTIFACT_NAME)/include/"
+	tar -C "$(DIST_DIR)" -czf "$(DIST_DIR)/$(LINUX_ARTIFACT_NAME).tar.gz" "$(LINUX_ARTIFACT_NAME)"
+
+.PHONY: package-darwin-arm64
+package-darwin-arm64: build-release
+	test "$$(uname -s)" = "Darwin" && test "$$(uname -m)" = "arm64" || \
+		(echo "package-darwin-arm64 must run on Darwin/arm64" && exit 1)
+	test -f "$(TARGET_DIR)/$(STATIC_LIB)" || \
+		(echo "missing $(TARGET_DIR)/$(STATIC_LIB)" && exit 1)
+	rm -rf "$(DIST_DIR)/$(DARWIN_ARTIFACT_NAME)" "$(DIST_DIR)/$(DARWIN_ARTIFACT_NAME).tar.gz"
+	mkdir -p "$(DIST_DIR)/$(DARWIN_ARTIFACT_NAME)/lib" "$(DIST_DIR)/$(DARWIN_ARTIFACT_NAME)/include"
+	cp "$(TARGET_DIR)/$(STATIC_LIB)" "$(DIST_DIR)/$(DARWIN_ARTIFACT_NAME)/lib/"
+	cp "$(ROOT_DIR)/include/bbs_ffi.h" "$(DIST_DIR)/$(DARWIN_ARTIFACT_NAME)/include/"
+	tar -C "$(DIST_DIR)" -czf "$(DIST_DIR)/$(DARWIN_ARTIFACT_NAME).tar.gz" "$(DARWIN_ARTIFACT_NAME)"
 
 .PHONY: ci
 ci: test sync-go-native-linux-amd64 test-go-ffi package-linux-amd64

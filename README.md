@@ -2,7 +2,7 @@
 
 `libbbsplus` is a small FFI wrapper over Dock's BBS+ Rust library. It exposes a C ABI and a Go package so services written in Go can generate keys, sign and verify messages, and create and verify selective-disclosure proofs without binding directly to Dock's Rust types.
 
-The Linux AMD64 Go package vendors a static native archive, so Go users do not need to pass cgo compiler/linker flags or configure `LD_LIBRARY_PATH`. Public native functions keep the `bbs_` prefix and are declared in [`include/bbs_ffi.h`](include/bbs_ffi.h).
+The Go package vendors static native archives for Linux AMD64 and Apple Silicon macOS, so users on those targets do not need to pass cgo compiler/linker flags or configure runtime library paths. Public native functions keep the `bbs_` prefix and are declared in [`include/bbs_ffi.h`](include/bbs_ffi.h).
 
 ## What It Exposes
 
@@ -35,23 +35,37 @@ Build the ready-to-use Linux AMD64 artifact:
 make docker-artifacts
 ```
 
-The artifact is written to:
+Build and test the Apple Silicon macOS package on an M-series Mac:
+
+```sh
+make sync-go-native-darwin-arm64
+make test-go-ffi
+make package-darwin-arm64
+```
+
+The Linux artifact is written to:
 
 ```text
 dist/libbbsplus-linux-amd64.tar.gz
 ```
 
-It contains:
+The Apple Silicon artifact is written to:
 
 ```text
-libbbsplus-linux-amd64/
+dist/libbbsplus-darwin-arm64.tar.gz
+```
+
+Each artifact contains:
+
+```text
+libbbsplus-<os>-<arch>/
   include/bbs_ffi.h
   lib/libbbsplus.a
 ```
 
 ## Go Usage
 
-On Linux AMD64 with cgo enabled, use the Go wrapper module from this repository without any extra cgo flags:
+On Linux AMD64 or Apple Silicon macOS with cgo enabled, use the Go wrapper module from this repository without any extra cgo flags:
 
 ```go
 package main
@@ -87,8 +101,8 @@ The package includes its own cgo directives and bundled static native archive. A
 go test ./...
 ```
 
-Because the native code is linked statically into the Go binary, there is no `libbbsplus.so` runtime lookup.
+Because the native code is linked statically into the Go binary, there is no `libbbsplus.so` or `libbbsplus.dylib` runtime lookup.
 
-This is still a cgo package, so `CGO_ENABLED=1` and a C linker are required. The bundled native archive currently targets Linux AMD64 only; other platforms need their own `go/native/<os>_<arch>` archive and cgo directives.
+This is still a cgo package, so `CGO_ENABLED=1` and a C linker are required. The bundled native archives currently target Linux AMD64 and Apple Silicon macOS (`darwin/arm64`); other platforms need their own `go/native/<os>_<arch>` archive and cgo directives.
 
 See [`go`](go) for the wrapper package and an end-to-end test covering key generation, signing, signature verification, proof creation, and proof verification.
