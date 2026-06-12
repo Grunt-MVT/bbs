@@ -46,6 +46,11 @@ typedef struct BbsKeyPair {
   BbsByteBuffer public_key;
 } BbsKeyPair;
 
+typedef struct BbsStringArray {
+  const char *const *data;
+  size_t len;
+} BbsStringArray;
+
 // Frees a byte buffer returned by this library.
 void bbs_free_buffer(BbsByteBuffer buffer);
 
@@ -54,6 +59,11 @@ void bbs_free_keypair(BbsKeyPair *keypair);
 
 // Returns a static null-terminated string describing a status code.
 const char *bbs_status_message(int32_t status);
+
+// Returns PID identifiers as defined in
+// https://eudi.dev/2.4.0/annexes/annex-3/annex-3.01-pid-rulebook/.
+// The returned strings are static and owned by the library.
+BbsStringArray bbs_pid_order(void);
 
 // Generates Dock-compatible signature params and a BBS+ keypair for message_count messages.
 int32_t bbs_generate_keypair(uint32_t message_count, BbsKeyPair *out_keypair);

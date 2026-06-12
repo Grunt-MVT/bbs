@@ -107,3 +107,17 @@ func TestNativePadding(t *testing.T) {
 	_, err = bbs.Sign(keyPair.Params, keyPair.SecretKey, make([][]byte, 21))
 	requireStatus(t, err, bbs.StatusTooManyMessages)
 }
+
+func TestPIDOrder(t *testing.T) {
+	want := [5]string{
+		"family_name",
+		"given_name",
+		"birth_date",
+		"birth_place",
+		"nationality",
+	}
+
+	if bbs.PIDOrder != want {
+		t.Fatalf("unexpected PID order: got %v, want %v", bbs.PIDOrder, want)
+	}
+}

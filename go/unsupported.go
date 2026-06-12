@@ -7,6 +7,8 @@ import (
 	"fmt"
 )
 
+const pidOrderLen = 5
+
 const (
 	// StatusOK is returned by the native library when an operation succeeds.
 	StatusOK int32 = 0
@@ -17,6 +19,16 @@ const (
 	// StatusTooManyMessages is returned when more messages are supplied than params support.
 	StatusTooManyMessages int32 = 8
 )
+
+// PIDOrder contains PID identifiers as defined in
+// https://eudi.dev/2.4.0/annexes/annex-3/annex-3.01-pid-rulebook/.
+var PIDOrder = [pidOrderLen]string{
+	"family_name",
+	"given_name",
+	"birth_date",
+	"birth_place",
+	"nationality",
+}
 
 var errUnsupported = errors.New("libbbsplus: bundled native library is available only on linux/amd64 or darwin/arm64 with cgo enabled")
 

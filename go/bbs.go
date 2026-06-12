@@ -20,6 +20,8 @@ import (
 	"unsafe"
 )
 
+const pidOrderLen = 5
+
 const (
 	// StatusOK is returned by the native library when an operation succeeds.
 	StatusOK int32 = C.BBS_OK
@@ -30,6 +32,10 @@ const (
 	// StatusTooManyMessages is returned when more messages are supplied than params support.
 	StatusTooManyMessages int32 = C.BBS_ERROR_TOO_MANY_MSGS
 )
+
+// PIDOrder contains PID identifiers as defined in
+// https://eudi.dev/2.4.0/annexes/annex-3/annex-3.01-pid-rulebook/.
+var PIDOrder = pidOrder()
 
 // Error wraps a non-OK status returned by libbbsplus.
 type Error struct {
@@ -188,6 +194,20 @@ func statusError(code C.int32_t) error {
 		Code:    int32(code),
 		Message: C.GoString(C.bbs_status_message(code)),
 	}
+}
+
+func pidOrder() [pidOrderLen]string {
+	raw := C.bbs_pid_order()
+	if raw.data == nil || raw.len != C.size_t(pidOrderLen) {
+		panic("libbbsplus: invalid native PID order")
+	}
+
+	var out [pidOrderLen]string
+	items := unsafe.Slice(raw.data, pidOrderLen)
+	for i, item := range items {
+		out[i] = C.GoString(item)
+	}
+	return out
 }
 
 func bytesFromBuffer(buffer C.BbsByteBuffer) []byte {

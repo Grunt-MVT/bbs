@@ -11,6 +11,7 @@ The Go package vendors static native archives for Linux AMD64 and Apple Silicon 
 - `bbs_verify_signature` verifies a signature over the same raw byte messages using the same padding and hashing rules.
 - `bbs_create_proof` creates a proof of knowledge of a signature with selected message indexes revealed.
 - `bbs_verify_proof` verifies the proof using the revealed indexed raw messages.
+- `bbs_pid_order` exposes the PID identifier order used by the wrapper.
 - `bbs_free_buffer` and `bbs_free_keypair` release buffers allocated by the library.
 
 All serialized cryptographic values use Dock/ark canonical compressed bytes. The FFI boundary uses plain pointers, lengths, and integer status codes for straightforward cgo usage.
