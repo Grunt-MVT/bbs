@@ -13,6 +13,9 @@ const (
 
 	// StatusVerifyFailed is returned when a signature or proof does not verify.
 	StatusVerifyFailed int32 = 7
+
+	// StatusTooManyMessages is returned when more messages are supplied than params support.
+	StatusTooManyMessages int32 = 8
 )
 
 var errUnsupported = errors.New("libbbsplus: bundled native library is available only on linux/amd64 or darwin/arm64 with cgo enabled")

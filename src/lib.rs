@@ -14,7 +14,7 @@ use bbs_plus::{
 };
 use blake2::Blake2b512;
 use dock_crypto_utils::hashing_utils::hash_to_field;
-use dock_crypto_utils::signature::MessageOrBlinding;
+use dock_crypto_utils::signature::{MessageOrBlinding, MultiMessageSignatureParams};
 use rand::rngs::OsRng;
 use schnorr_pok::compute_random_oracle_challenge;
 
@@ -25,6 +25,7 @@ type Signature = SignatureG1<Bls12_381>;
 type Proof = PoKOfSignatureG1Proof<Bls12_381>;
 
 const MESSAGE_DOMAIN_PREFIX: &[u8] = b"bbs-ffi/v1/message/";
+const PADDING_MESSAGE: &[u8] = b"\xffbbsplus-padding-v1\xfe";
 
 pub const BBS_OK: c_int = 0;
 pub const BBS_ERROR_NULL_POINTER: c_int = 1;
@@ -34,6 +35,7 @@ pub const BBS_ERROR_DESERIALIZE: c_int = 4;
 pub const BBS_ERROR_SERIALIZE: c_int = 5;
 pub const BBS_ERROR_CRYPTO: c_int = 6;
 pub const BBS_ERROR_VERIFY_FAILED: c_int = 7;
+pub const BBS_ERROR_TOO_MANY_MSGS: c_int = 8;
 pub const BBS_ERROR_PANIC: c_int = 255;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -45,6 +47,7 @@ enum FfiError {
     Serialize,
     Crypto,
     VerifyFailed,
+    TooManyMessages,
 }
 
 impl FfiError {
@@ -57,6 +60,7 @@ impl FfiError {
             FfiError::Serialize => BBS_ERROR_SERIALIZE,
             FfiError::Crypto => BBS_ERROR_CRYPTO,
             FfiError::VerifyFailed => BBS_ERROR_VERIFY_FAILED,
+            FfiError::TooManyMessages => BBS_ERROR_TOO_MANY_MSGS,
         }
     }
 }
@@ -142,13 +146,20 @@ unsafe fn read_byte_slice<'a>(slice: BbsByteSlice) -> FfiResult<&'a [u8]> {
 }
 
 unsafe fn read_messages(data: *const BbsMessage, len: usize) -> FfiResult<Vec<Vec<u8>>> {
-    if len == 0 {
-        return Err(FfiError::InvalidLength);
-    }
     read_slice(data, len)?
         .iter()
         .map(|msg| read_bytes(msg.data, msg.len).map(|bytes| bytes.to_vec()))
         .collect()
+}
+
+fn pad_messages_to_params(params: &Params, messages: &mut Vec<Vec<u8>>) -> FfiResult<()> {
+    let supported_message_count = params.supported_message_count();
+    if messages.len() > supported_message_count {
+        return Err(FfiError::TooManyMessages);
+    }
+
+    messages.resize_with(supported_message_count, || PADDING_MESSAGE.to_vec());
+    Ok(())
 }
 
 unsafe fn read_revealed_indices(
@@ -395,6 +406,7 @@ pub extern "C" fn bbs_status_message(status: c_int) -> *const c_char {
         BBS_ERROR_SERIALIZE => b"serialize error\0".as_ptr(),
         BBS_ERROR_CRYPTO => b"cryptographic operation failed\0".as_ptr(),
         BBS_ERROR_VERIFY_FAILED => b"verification failed\0".as_ptr(),
+        BBS_ERROR_TOO_MANY_MSGS => b"too many messages\0".as_ptr(),
         BBS_ERROR_PANIC => b"panic\0".as_ptr(),
         _ => b"unknown status\0".as_ptr(),
     }
@@ -430,9 +442,11 @@ pub unsafe extern "C" fn bbs_generate_keypair(
 
 /// Signs raw byte messages with Dock BBS+.
 ///
-/// Messages are hashed to BLS12-381 field elements internally using a stable domain based on their
-/// zero-based position. The returned signature is Dock canonical compressed bytes and must be freed
-/// with `bbs_free_buffer`.
+/// If fewer messages are supplied than the params support, missing slots are padded internally.
+/// Messages are then hashed to BLS12-381 field elements using a stable domain based on their
+/// zero-based position. Supplying more messages than the params support returns
+/// `BBS_ERROR_TOO_MANY_MSGS`. The returned signature is Dock canonical compressed bytes and must be
+/// freed with `bbs_free_buffer`.
 ///
 /// # Safety
 /// All input slices must be valid for their lengths. `out_signature` must point to writable memory
@@ -448,7 +462,8 @@ pub unsafe extern "C" fn bbs_sign(
     ffi_guard(|| {
         let params = deserialize_compressed::<Params>(read_byte_slice(params)?)?;
         let secret_key = deserialize_compressed::<Secret>(read_byte_slice(secret_key)?)?;
-        let raw_messages = read_messages(messages, message_count)?;
+        let mut raw_messages = read_messages(messages, message_count)?;
+        pad_messages_to_params(&params, &mut raw_messages)?;
         let messages = hash_messages(&raw_messages);
         let signature = sign(&params, &secret_key, &messages)?;
         write_buffer(out_signature, serialize_compressed(&signature)?)
@@ -457,8 +472,8 @@ pub unsafe extern "C" fn bbs_sign(
 
 /// Verifies a Dock BBS+ signature over raw byte messages.
 ///
-/// The verifier hashes messages the same way as `bbs_sign`. Returns `BBS_OK` only when the
-/// signature verifies; invalid signatures return `BBS_ERROR_VERIFY_FAILED`.
+/// The verifier applies the same padding and hashing rules as `bbs_sign`. Returns `BBS_OK` only
+/// when the signature verifies; invalid signatures return `BBS_ERROR_VERIFY_FAILED`.
 ///
 /// # Safety
 /// All input slices and the `messages` array must be valid for their lengths.
@@ -474,7 +489,8 @@ pub unsafe extern "C" fn bbs_verify_signature(
         let params = deserialize_compressed::<Params>(read_byte_slice(params)?)?;
         let public_key = deserialize_compressed::<PublicKey>(read_byte_slice(public_key)?)?;
         let signature = deserialize_compressed::<Signature>(read_byte_slice(signature)?)?;
-        let raw_messages = read_messages(messages, message_count)?;
+        let mut raw_messages = read_messages(messages, message_count)?;
+        pad_messages_to_params(&params, &mut raw_messages)?;
         let messages = hash_messages(&raw_messages);
         verify_signature(&params, &public_key, &messages, &signature)
     })
@@ -482,7 +498,8 @@ pub unsafe extern "C" fn bbs_verify_signature(
 
 /// Creates a proof of knowledge of a BBS+ signature with selective disclosure.
 ///
-/// `revealed_indices` contains zero-based message indexes to disclose. Non-revealed messages are
+/// Missing message slots are padded internally before proof generation. `revealed_indices` contains
+/// zero-based message indexes in the padded message vector to disclose. Non-revealed messages are
 /// hidden in the proof. The returned proof is Dock canonical compressed bytes and must be freed with
 /// `bbs_free_buffer`.
 ///
@@ -504,7 +521,8 @@ pub unsafe extern "C" fn bbs_create_proof(
         let params = deserialize_compressed::<Params>(read_byte_slice(params)?)?;
         let public_key = deserialize_compressed::<PublicKey>(read_byte_slice(public_key)?)?;
         let signature = deserialize_compressed::<Signature>(read_byte_slice(signature)?)?;
-        let raw_messages = read_messages(messages, message_count)?;
+        let mut raw_messages = read_messages(messages, message_count)?;
+        pad_messages_to_params(&params, &mut raw_messages)?;
         let messages = hash_messages(&raw_messages);
         let revealed_indices =
             read_revealed_indices(revealed_indices, revealed_indices_count, messages.len())?;
@@ -710,6 +728,107 @@ mod tests {
 
             bbs_free_buffer(proof);
             bbs_free_buffer(signature);
+            bbs_free_keypair(&mut keypair);
+        }
+    }
+
+    #[test]
+    fn pads_messages_to_params_count() {
+        unsafe {
+            let mut keypair = BbsKeyPair::default();
+            assert_eq!(bbs_generate_keypair(20, &mut keypair), BBS_OK);
+
+            let messages = [
+                b"alice".as_slice(),
+                b"US".as_slice(),
+                b"1990-01-01".as_slice(),
+                b"active".as_slice(),
+            ];
+            let ffi_messages = messages.map(ffi_message);
+
+            let mut signature = BbsByteBuffer::default();
+            assert_eq!(
+                bbs_sign(
+                    buffer_slice(keypair.params),
+                    buffer_slice(keypair.secret_key),
+                    ffi_messages.as_ptr(),
+                    ffi_messages.len(),
+                    &mut signature,
+                ),
+                BBS_OK
+            );
+
+            assert_eq!(
+                bbs_verify_signature(
+                    buffer_slice(keypair.params),
+                    buffer_slice(keypair.public_key),
+                    ffi_messages.as_ptr(),
+                    ffi_messages.len(),
+                    buffer_slice(signature),
+                ),
+                BBS_OK
+            );
+
+            let revealed = [0_u32, 3_u32];
+            let mut proof = BbsByteBuffer::default();
+            assert_eq!(
+                bbs_create_proof(
+                    buffer_slice(keypair.params),
+                    buffer_slice(keypair.public_key),
+                    buffer_slice(signature),
+                    ffi_messages.as_ptr(),
+                    ffi_messages.len(),
+                    revealed.as_ptr(),
+                    revealed.len(),
+                    &mut proof,
+                ),
+                BBS_OK
+            );
+
+            let revealed_messages = [
+                ffi_indexed_message(0, b"alice"),
+                ffi_indexed_message(3, b"active"),
+            ];
+            assert_eq!(
+                bbs_verify_proof(
+                    buffer_slice(keypair.params),
+                    buffer_slice(keypair.public_key),
+                    buffer_slice(proof),
+                    revealed_messages.as_ptr(),
+                    revealed_messages.len(),
+                ),
+                BBS_OK
+            );
+
+            bbs_free_buffer(proof);
+            bbs_free_buffer(signature);
+            bbs_free_keypair(&mut keypair);
+        }
+    }
+
+    #[test]
+    fn rejects_more_messages_than_params_support() {
+        unsafe {
+            let mut keypair = BbsKeyPair::default();
+            assert_eq!(bbs_generate_keypair(2, &mut keypair), BBS_OK);
+
+            let messages = [
+                ffi_message(b"alice"),
+                ffi_message(b"US"),
+                ffi_message(b"active"),
+            ];
+            let mut signature = BbsByteBuffer::default();
+            assert_eq!(
+                bbs_sign(
+                    buffer_slice(keypair.params),
+                    buffer_slice(keypair.secret_key),
+                    messages.as_ptr(),
+                    messages.len(),
+                    &mut signature,
+                ),
+                BBS_ERROR_TOO_MANY_MSGS
+            );
+
             bbs_free_keypair(&mut keypair);
         }
     }

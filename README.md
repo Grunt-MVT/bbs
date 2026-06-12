@@ -6,14 +6,18 @@ The Go package vendors static native archives for Linux AMD64 and Apple Silicon 
 
 ## What It Exposes
 
-- `bbs_generate_keypair` creates Dock-compatible signature parameters, secret key, and public key bytes.
-- `bbs_sign` signs raw byte messages. Messages are hashed to BLS12-381 field elements inside the library.
-- `bbs_verify_signature` verifies a signature over the same raw byte messages.
+- `bbs_generate_keypair` creates Dock-compatible signature parameters, secret key, and public key bytes for a maximum/common message count.
+- `bbs_sign` signs raw byte messages. If fewer messages are supplied than the params support, the library pads missing slots internally before hashing messages to BLS12-381 field elements.
+- `bbs_verify_signature` verifies a signature over the same raw byte messages using the same padding and hashing rules.
 - `bbs_create_proof` creates a proof of knowledge of a signature with selected message indexes revealed.
 - `bbs_verify_proof` verifies the proof using the revealed indexed raw messages.
 - `bbs_free_buffer` and `bbs_free_keypair` release buffers allocated by the library.
 
 All serialized cryptographic values use Dock/ark canonical compressed bytes. The FFI boundary uses plain pointers, lengths, and integer status codes for straightforward cgo usage.
+
+Signature params define the padded message-vector length. This lets applications use a common length, such as 20 slots, while signing credentials that currently fill fewer slots. Missing slots are padded in Rust with an internal invalid-UTF-8 sentinel (`0xff || "bbsplus-padding-v1" || 0xfe`). Supplying more messages than the params support returns `BBS_ERROR_TOO_MANY_MSGS`.
+
+Proof indexes always refer to the padded vector layout. Applications should keep stable slot ordering, for example slot 0 = name, slot 1 = country, slot 2 = expiration, and so on.
 
 ## Build Locally
 
@@ -73,13 +77,15 @@ package main
 import bbs "github.com/Grunt-MVT/bbs/go"
 
 func main() {
+	const maxMessages = 20
+
 	messages := [][]byte{
 		[]byte("alice"),
 		[]byte("US"),
 		[]byte("1716328800"),
 	}
 
-	keyPair, err := bbs.GenerateKeyPair(len(messages))
+	keyPair, err := bbs.GenerateKeyPair(maxMessages)
 	if err != nil {
 		panic(err)
 	}

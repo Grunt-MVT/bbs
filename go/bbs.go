@@ -26,6 +26,9 @@ const (
 
 	// StatusVerifyFailed is returned when a signature or proof does not verify.
 	StatusVerifyFailed int32 = C.BBS_ERROR_VERIFY_FAILED
+
+	// StatusTooManyMessages is returned when more messages are supplied than params support.
+	StatusTooManyMessages int32 = C.BBS_ERROR_TOO_MANY_MSGS
 )
 
 // Error wraps a non-OK status returned by libbbsplus.
@@ -60,7 +63,7 @@ func StatusCode(err error) (int32, bool) {
 	return 0, false
 }
 
-// GenerateKeyPair creates signature parameters and a BBS+ keypair for messageCount messages.
+// GenerateKeyPair creates signature parameters and a BBS+ keypair for up to messageCount messages.
 func GenerateKeyPair(messageCount int) (*KeyPair, error) {
 	if messageCount <= 0 || messageCount > math.MaxUint32 {
 		return nil, fmt.Errorf("libbbsplus: invalid message count %d", messageCount)
@@ -80,7 +83,7 @@ func GenerateKeyPair(messageCount int) (*KeyPair, error) {
 	}, nil
 }
 
-// Sign signs raw byte messages. Messages are hashed to field elements by libbbsplus.
+// Sign signs raw byte messages. Missing slots are padded by libbbsplus when params support more messages.
 func Sign(params, secretKey []byte, messages [][]byte) ([]byte, error) {
 	cParams, freeParams := cByteSlice(params)
 	defer freeParams()
@@ -105,7 +108,7 @@ func Sign(params, secretKey []byte, messages [][]byte) ([]byte, error) {
 	return bytesFromBuffer(signature), nil
 }
 
-// VerifySignature verifies a BBS+ signature over raw byte messages.
+// VerifySignature verifies a BBS+ signature over raw byte messages using the native padding rules.
 func VerifySignature(params, publicKey []byte, messages [][]byte, signature []byte) error {
 	cParams, freeParams := cByteSlice(params)
 	defer freeParams()
@@ -125,7 +128,7 @@ func VerifySignature(params, publicKey []byte, messages [][]byte, signature []by
 	))
 }
 
-// CreateProof creates a selective-disclosure proof for a BBS+ signature.
+// CreateProof creates a selective-disclosure proof for a BBS+ signature using the native padding rules.
 func CreateProof(params, publicKey, signature []byte, messages [][]byte, revealed []uint32) ([]byte, error) {
 	cParams, freeParams := cByteSlice(params)
 	defer freeParams()

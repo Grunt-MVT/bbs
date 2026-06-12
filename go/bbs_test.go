@@ -72,3 +72,38 @@ func TestEndToEnd(t *testing.T) {
 	})
 	requireStatus(t, err, bbs.StatusVerifyFailed)
 }
+
+func TestNativePadding(t *testing.T) {
+	messages := [][]byte{
+		[]byte("alice"),
+		[]byte("US"),
+		[]byte("active"),
+	}
+
+	keyPair, err := bbs.GenerateKeyPair(20)
+	requireNoError(t, err)
+
+	signature, err := bbs.Sign(keyPair.Params, keyPair.SecretKey, messages)
+	requireNoError(t, err)
+
+	err = bbs.VerifySignature(keyPair.Params, keyPair.PublicKey, messages, signature)
+	requireNoError(t, err)
+
+	proof, err := bbs.CreateProof(
+		keyPair.Params,
+		keyPair.PublicKey,
+		signature,
+		messages,
+		[]uint32{0, 2},
+	)
+	requireNoError(t, err)
+
+	err = bbs.VerifyProof(keyPair.Params, keyPair.PublicKey, proof, []bbs.RevealedMessage{
+		{Index: 0, Data: messages[0]},
+		{Index: 2, Data: messages[2]},
+	})
+	requireNoError(t, err)
+
+	_, err = bbs.Sign(keyPair.Params, keyPair.SecretKey, make([][]byte, 21))
+	requireStatus(t, err, bbs.StatusTooManyMessages)
+}
