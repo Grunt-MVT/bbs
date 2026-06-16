@@ -1,0 +1,18 @@
+{
+  "name": "@grunt-mvt/bbs-node",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "npm run build:native && npm run build:ts",
+    "build:native": "cargo build --release --manifest-path native/Cargo.toml && node scripts/copy-native.cjs",
+    "build:ts": "tsc -p tsconfig.json",
+    "test": "node --test dist/*.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.130",
+    "typescript": "^5.9.3"
+  }
+}

@@ -113,3 +113,36 @@ Because the native code is linked statically into the Go binary, there is no `li
 This is still a cgo package, so `CGO_ENABLED=1` and a C linker are required. The bundled native archives currently target Linux AMD64 and Apple Silicon macOS (`darwin/arm64`); other platforms need their own `go/native/<os>_<arch>` archive and cgo directives.
 
 See [`go`](go) for the wrapper package and an end-to-end test covering key generation, signing, signature verification, proof creation, and proof verification.
+
+## Node/TypeScript Usage
+
+The Node package exposes only protocol metadata and proof verification:
+
+```ts
+import { pidOrder, verifyProof } from "@grunt-mvt/bbs-node";
+
+const ok = verifyProof(paramsBytes, publicKeyBytes, proofBytes, [
+  { index: 0, data: Buffer.from("Doe") },
+  { index: 2, data: Buffer.from("1990-01-01") },
+]);
+```
+
+`pidOrder` is the ordered PID identifier list:
+
+```ts
+[
+  "family_name",
+  "given_name",
+  "birth_date",
+  "birth_place",
+  "nationality",
+]
+```
+
+All Node inputs are raw bytes (`Uint8Array` or `Buffer`). Store params, public keys, and proofs with binary-safe encodings such as base64 before placing them in JSON, environment variables, or secret vaults.
+
+Build and test the Node package locally:
+
+```sh
+make test-node
+```

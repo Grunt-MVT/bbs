@@ -6,6 +6,7 @@ use std::ptr;
 use std::slice;
 
 mod protocol;
+pub use protocol::PID_ORDER;
 
 use ark_bls12_381::{Bls12_381, Fr};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
@@ -368,6 +369,63 @@ fn verify_proof(
             params.clone(),
         )
         .map_err(|_| FfiError::VerifyFailed)
+}
+
+pub fn pid_order() -> &'static [&'static str] {
+    &PID_ORDER
+}
+
+pub fn status_message(status: c_int) -> &'static str {
+    match status {
+        BBS_OK => "ok",
+        BBS_ERROR_NULL_POINTER => "null pointer",
+        BBS_ERROR_INVALID_LENGTH => "invalid length",
+        BBS_ERROR_INVALID_INDEX => "invalid index",
+        BBS_ERROR_DESERIALIZE => "deserialize error",
+        BBS_ERROR_SERIALIZE => "serialize error",
+        BBS_ERROR_CRYPTO => "cryptographic operation failed",
+        BBS_ERROR_VERIFY_FAILED => "verification failed",
+        BBS_ERROR_TOO_MANY_MSGS => "too many messages",
+        BBS_ERROR_PANIC => "panic",
+        _ => "unknown status",
+    }
+}
+
+pub fn verify_proof_bytes(
+    params: &[u8],
+    public_key: &[u8],
+    proof: &[u8],
+    revealed_messages: &[(u32, &[u8])],
+) -> c_int {
+    fn inner(
+        params: &[u8],
+        public_key: &[u8],
+        proof: &[u8],
+        revealed_messages: &[(u32, &[u8])],
+    ) -> FfiResult<()> {
+        let params = deserialize_compressed::<Params>(params)?;
+        let public_key = deserialize_compressed::<PublicKey>(public_key)?;
+        let proof = deserialize_compressed::<Proof>(proof)?;
+        let mut messages = BTreeMap::new();
+
+        for (index, bytes) in revealed_messages {
+            let index = *index as usize;
+            if messages.contains_key(&index) {
+                return Err(FfiError::InvalidIndex);
+            }
+            messages.insert(index, hash_message(index, bytes));
+        }
+
+        verify_proof(&params, &public_key, &proof, &messages)
+    }
+
+    match catch_unwind(AssertUnwindSafe(|| {
+        inner(params, public_key, proof, revealed_messages)
+    })) {
+        Ok(Ok(())) => BBS_OK,
+        Ok(Err(err)) => err.code(),
+        Err(_) => BBS_ERROR_PANIC,
+    }
 }
 
 /// Frees a byte buffer allocated by this library.

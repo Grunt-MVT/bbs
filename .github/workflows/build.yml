@@ -25,8 +25,21 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+          cache-dependency-path: node/package-lock.json
+
       - name: Build vendored Go native library
         run: make docker-sync-go-native-linux-amd64
+
+      - name: Test Node package
+        run: make test-node
 
       - name: Commit vendored Go native library
         if: github.actor != 'github-actions[bot]'
@@ -71,11 +84,24 @@ jobs:
         with:
           go-version-file: go/go.mod
 
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+          cache-dependency-path: node/package-lock.json
+
       - name: Build vendored Go native library
         run: make sync-go-native-darwin-arm64
 
       - name: Test Go package
         run: make test-go-ffi
+
+      - name: Test Node package
+        run: make test-node
 
       - name: Package Darwin ARM64 artifact
         run: make package-darwin-arm64

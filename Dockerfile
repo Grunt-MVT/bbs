@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     golang-go \
     make \
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app/bbs
@@ -15,6 +17,7 @@ WORKDIR /app/bbs
 COPY Cargo.toml Cargo.lock Makefile ./
 COPY go ./go
 COPY include ./include
+COPY node ./node
 COPY src ./src
 
 FROM base AS ci

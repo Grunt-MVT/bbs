@@ -23,6 +23,14 @@ build-release:
 test-go-ffi:
 	cd "$(ROOT_DIR)/go" && CGO_ENABLED=1 go test -v ./...
 
+.PHONY: build-node
+build-node:
+	cd "$(ROOT_DIR)/node" && npm ci && CARGO_TARGET_DIR="$(CARGO_TARGET_DIR)/node" npm run build
+
+.PHONY: test-node
+test-node: build-node
+	cd "$(ROOT_DIR)/node" && npm test
+
 .PHONY: sync-go-native-linux-amd64
 sync-go-native-linux-amd64: build-release
 	test "$$(uname -s)" = "Linux" && test "$$(uname -m)" = "x86_64" || \
@@ -70,7 +78,7 @@ package-darwin-arm64: build-release
 	tar -C "$(DIST_DIR)" -czf "$(DIST_DIR)/$(DARWIN_ARTIFACT_NAME).tar.gz" "$(DARWIN_ARTIFACT_NAME)"
 
 .PHONY: ci
-ci: test sync-go-native-linux-amd64 test-go-ffi package-linux-amd64
+ci: test sync-go-native-linux-amd64 test-go-ffi test-node package-linux-amd64
 
 .PHONY: docker-ci
 docker-ci:

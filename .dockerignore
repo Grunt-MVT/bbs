@@ -3,3 +3,7 @@ target
 dist
 .cargo-home*
 .DS_Store
+node/dist
+node/native/*.node
+node/native/target
+node/node_modules

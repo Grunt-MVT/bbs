@@ -1,0 +1,17 @@
+[package]
+name = "bbsplus-node"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "bbsplus_node"
+crate-type = ["cdylib"]
+
+[dependencies]
+bbsplus_core = { package = "libbbsplus", path = "../.." }
+napi = { version = "2", default-features = false, features = ["napi4"] }
+napi-derive = "2"
+
+[build-dependencies]
+napi-build = "=2.2.3"

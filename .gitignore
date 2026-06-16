@@ -1,3 +1,7 @@
 target/
 dist/
 .cargo-home*/
+node/dist/
+node/native/*.node
+node/native/target/
+node/node_modules/
