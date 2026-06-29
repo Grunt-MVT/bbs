@@ -6,7 +6,6 @@ import test from "node:test";
 import { pidOrder, verifyProof, type RevealedMessage } from "./index";
 
 type Fixture = {
-  params: string;
   publicKey: string;
   proof: string;
   revealedMessages: Array<{
@@ -24,7 +23,6 @@ function loadFixture() {
   const fixture = JSON.parse(fs.readFileSync(fixturePath, "utf8")) as Fixture;
 
   return {
-    params: bytes(fixture.params),
     publicKey: bytes(fixture.publicKey),
     proof: bytes(fixture.proof),
     revealedMessages: fixture.revealedMessages.map<RevealedMessage>((message) => ({
@@ -48,7 +46,7 @@ test("verifyProof returns true for a valid proof", () => {
   const fixture = loadFixture();
 
   assert.equal(
-    verifyProof(fixture.params, fixture.publicKey, fixture.proof, fixture.revealedMessages),
+    verifyProof(fixture.publicKey, fixture.proof, fixture.revealedMessages),
     true,
   );
 });
@@ -62,7 +60,7 @@ test("verifyProof returns false for tampered revealed messages", () => {
   };
 
   assert.equal(
-    verifyProof(fixture.params, fixture.publicKey, fixture.proof, revealedMessages),
+    verifyProof(fixture.publicKey, fixture.proof, revealedMessages),
     false,
   );
 });
@@ -71,6 +69,6 @@ test("verifyProof throws for malformed byte inputs", () => {
   const fixture = loadFixture();
 
   assert.throws(() =>
-    verifyProof(new Uint8Array([1, 2, 3]), fixture.publicKey, fixture.proof, fixture.revealedMessages),
+    verifyProof(new Uint8Array([1, 2, 3]), fixture.proof, fixture.revealedMessages),
   );
 });

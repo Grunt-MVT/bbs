@@ -9,6 +9,9 @@ import (
 
 const pidOrderLen = 5
 
+// MaxMessageCount is the protocol message capacity used for key generation and padding.
+const MaxMessageCount = 20
+
 const (
 	// StatusOK is returned by the native library when an operation succeeds.
 	StatusOK int32 = 0
@@ -69,22 +72,22 @@ func GenerateKeyPair(messageCount int) (*KeyPair, error) {
 	return nil, errUnsupported
 }
 
-// Sign signs raw byte messages. Messages are hashed to field elements by libbbsplus.
-func Sign(params, secretKey []byte, messages [][]byte) ([]byte, error) {
+// Sign signs raw byte messages. Missing slots are padded by libbbsplus to MaxMessageCount.
+func Sign(secretKey []byte, messages [][]byte) ([]byte, error) {
 	return nil, errUnsupported
 }
 
 // VerifySignature verifies a BBS+ signature over raw byte messages.
-func VerifySignature(params, publicKey []byte, messages [][]byte, signature []byte) error {
+func VerifySignature(publicKey []byte, messages [][]byte, signature []byte) error {
 	return errUnsupported
 }
 
 // CreateProof creates a selective-disclosure proof for a BBS+ signature.
-func CreateProof(params, publicKey, signature []byte, messages [][]byte, revealed []uint32) ([]byte, error) {
+func CreateProof(publicKey, signature []byte, messages [][]byte, revealed []uint32) ([]byte, error) {
 	return nil, errUnsupported
 }
 
 // VerifyProof verifies a selective-disclosure proof against the revealed raw messages.
-func VerifyProof(params, publicKey, proof []byte, revealed []RevealedMessage) error {
+func VerifyProof(publicKey, proof []byte, revealed []RevealedMessage) error {
 	return errUnsupported
 }

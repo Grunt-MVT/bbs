@@ -16,7 +16,9 @@ The Go package vendors static native archives for Linux AMD64 and Apple Silicon 
 
 All serialized cryptographic values use Dock/ark canonical compressed bytes. The FFI boundary uses plain pointers, lengths, and integer status codes for straightforward cgo usage.
 
-Signature params define the padded message-vector length. This lets applications use a common length, such as 20 slots, while signing credentials that currently fill fewer slots. Missing slots are padded in Rust with an internal invalid-UTF-8 sentinel (`0xff || "bbsplus-padding-v1" || 0xfe`). Supplying more messages than the params support returns `BBS_ERROR_TOO_MANY_MSGS`.
+Signature params are deterministic and derived internally from a fixed API identifier and `MAX_MESSAGE_COUNT` (20). Callers do not pass params into sign, verify, or proof functions. `bbs_generate_keypair` still returns serialized params for storage or inspection, but `message_count` must equal 20.
+
+Signature params define the padded message-vector length. This lets applications use a common length of 20 slots while signing credentials that currently fill fewer slots. Missing slots are padded in Rust with an internal invalid-UTF-8 sentinel (`0xff || "bbsplus-padding-v1" || 0xfe`). Supplying more than 20 messages returns `BBS_ERROR_TOO_MANY_MSGS`.
 
 Proof indexes always refer to the padded vector layout. Applications should keep stable slot ordering, for example slot 0 = name, slot 1 = country, slot 2 = expiration, and so on.
 
@@ -78,25 +80,23 @@ package main
 import bbs "github.com/Grunt-MVT/bbs/go"
 
 func main() {
-	const maxMessages = 20
-
 	messages := [][]byte{
 		[]byte("alice"),
 		[]byte("US"),
 		[]byte("1716328800"),
 	}
 
-	keyPair, err := bbs.GenerateKeyPair(maxMessages)
+	keyPair, err := bbs.GenerateKeyPair(bbs.MaxMessageCount)
 	if err != nil {
 		panic(err)
 	}
 
-	signature, err := bbs.Sign(keyPair.Params, keyPair.SecretKey, messages)
+	signature, err := bbs.Sign(keyPair.SecretKey, messages)
 	if err != nil {
 		panic(err)
 	}
 
-	if err := bbs.VerifySignature(keyPair.Params, keyPair.PublicKey, messages, signature); err != nil {
+	if err := bbs.VerifySignature(keyPair.PublicKey, messages, signature); err != nil {
 		panic(err)
 	}
 }
@@ -119,9 +119,9 @@ See [`go`](go) for the wrapper package and an end-to-end test covering key gener
 The Node package exposes only protocol metadata and proof verification:
 
 ```ts
-import { pidOrder, verifyProof } from "@grunt-mvt/bbs-node";
+import { maxMessageCount, pidOrder, verifyProof } from "@grunt-mvt/bbs-node";
 
-const ok = verifyProof(paramsBytes, publicKeyBytes, proofBytes, [
+const ok = verifyProof(publicKeyBytes, proofBytes, [
   { index: 0, data: Buffer.from("Doe") },
   { index: 2, data: Buffer.from("1990-01-01") },
 ]);
@@ -139,7 +139,7 @@ const ok = verifyProof(paramsBytes, publicKeyBytes, proofBytes, [
 ]
 ```
 
-All Node inputs are raw bytes (`Uint8Array` or `Buffer`). Store params, public keys, and proofs with binary-safe encodings such as base64 before placing them in JSON, environment variables, or secret vaults.
+All Node inputs are raw bytes (`Uint8Array` or `Buffer`). Store public keys and proofs with binary-safe encodings such as base64 before placing them in JSON, environment variables, or secret vaults. Proof verification uses the same fixed `maxMessageCount` (20) as the Go package.
 
 Build and test the Node package locally:
 

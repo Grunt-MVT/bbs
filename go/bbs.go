@@ -22,6 +22,9 @@ import (
 
 const pidOrderLen = 5
 
+// MaxMessageCount is the protocol message capacity used for key generation and padding.
+const MaxMessageCount = 20
+
 const (
 	// StatusOK is returned by the native library when an operation succeeds.
 	StatusOK int32 = C.BBS_OK
@@ -89,10 +92,8 @@ func GenerateKeyPair(messageCount int) (*KeyPair, error) {
 	}, nil
 }
 
-// Sign signs raw byte messages. Missing slots are padded by libbbsplus when params support more messages.
-func Sign(params, secretKey []byte, messages [][]byte) ([]byte, error) {
-	cParams, freeParams := cByteSlice(params)
-	defer freeParams()
+// Sign signs raw byte messages. Missing slots are padded by libbbsplus to MaxMessageCount.
+func Sign(secretKey []byte, messages [][]byte) ([]byte, error) {
 	cSecretKey, freeSecretKey := cByteSlice(secretKey)
 	defer freeSecretKey()
 	cMessages, freeMessages := cMessages(messages)
@@ -100,7 +101,6 @@ func Sign(params, secretKey []byte, messages [][]byte) ([]byte, error) {
 
 	var signature C.BbsByteBuffer
 	code := C.bbs_sign(
-		cParams,
 		cSecretKey,
 		cMessages,
 		C.size_t(len(messages)),
@@ -115,9 +115,7 @@ func Sign(params, secretKey []byte, messages [][]byte) ([]byte, error) {
 }
 
 // VerifySignature verifies a BBS+ signature over raw byte messages using the native padding rules.
-func VerifySignature(params, publicKey []byte, messages [][]byte, signature []byte) error {
-	cParams, freeParams := cByteSlice(params)
-	defer freeParams()
+func VerifySignature(publicKey []byte, messages [][]byte, signature []byte) error {
 	cPublicKey, freePublicKey := cByteSlice(publicKey)
 	defer freePublicKey()
 	cSignature, freeSignature := cByteSlice(signature)
@@ -126,7 +124,6 @@ func VerifySignature(params, publicKey []byte, messages [][]byte, signature []by
 	defer freeMessages()
 
 	return statusError(C.bbs_verify_signature(
-		cParams,
 		cPublicKey,
 		cMessages,
 		C.size_t(len(messages)),
@@ -135,9 +132,7 @@ func VerifySignature(params, publicKey []byte, messages [][]byte, signature []by
 }
 
 // CreateProof creates a selective-disclosure proof for a BBS+ signature using the native padding rules.
-func CreateProof(params, publicKey, signature []byte, messages [][]byte, revealed []uint32) ([]byte, error) {
-	cParams, freeParams := cByteSlice(params)
-	defer freeParams()
+func CreateProof(publicKey, signature []byte, messages [][]byte, revealed []uint32) ([]byte, error) {
 	cPublicKey, freePublicKey := cByteSlice(publicKey)
 	defer freePublicKey()
 	cSignature, freeSignature := cByteSlice(signature)
@@ -149,7 +144,6 @@ func CreateProof(params, publicKey, signature []byte, messages [][]byte, reveale
 
 	var proof C.BbsByteBuffer
 	code := C.bbs_create_proof(
-		cParams,
 		cPublicKey,
 		cSignature,
 		cMessages,
@@ -167,9 +161,7 @@ func CreateProof(params, publicKey, signature []byte, messages [][]byte, reveale
 }
 
 // VerifyProof verifies a selective-disclosure proof against the revealed raw messages.
-func VerifyProof(params, publicKey, proof []byte, revealed []RevealedMessage) error {
-	cParams, freeParams := cByteSlice(params)
-	defer freeParams()
+func VerifyProof(publicKey, proof []byte, revealed []RevealedMessage) error {
 	cPublicKey, freePublicKey := cByteSlice(publicKey)
 	defer freePublicKey()
 	cProof, freeProof := cByteSlice(proof)
@@ -178,7 +170,6 @@ func VerifyProof(params, publicKey, proof []byte, revealed []RevealedMessage) er
 	defer freeRevealed()
 
 	return statusError(C.bbs_verify_proof(
-		cParams,
 		cPublicKey,
 		cProof,
 		cRevealed,

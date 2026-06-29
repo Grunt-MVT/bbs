@@ -34,13 +34,13 @@ func TestEndToEnd(t *testing.T) {
 		[]byte("1716328800"),
 	}
 
-	keyPair, err := bbs.GenerateKeyPair(len(messages))
+	keyPair, err := bbs.GenerateKeyPair(bbs.MaxMessageCount)
 	requireNoError(t, err)
 
-	signature, err := bbs.Sign(keyPair.Params, keyPair.SecretKey, messages)
+	signature, err := bbs.Sign(keyPair.SecretKey, messages)
 	requireNoError(t, err)
 
-	err = bbs.VerifySignature(keyPair.Params, keyPair.PublicKey, messages, signature)
+	err = bbs.VerifySignature(keyPair.PublicKey, messages, signature)
 	requireNoError(t, err)
 
 	badMessages := [][]byte{
@@ -48,11 +48,10 @@ func TestEndToEnd(t *testing.T) {
 		[]byte("CA"),
 		[]byte("1716328800"),
 	}
-	err = bbs.VerifySignature(keyPair.Params, keyPair.PublicKey, badMessages, signature)
+	err = bbs.VerifySignature(keyPair.PublicKey, badMessages, signature)
 	requireStatus(t, err, bbs.StatusVerifyFailed)
 
 	proof, err := bbs.CreateProof(
-		keyPair.Params,
 		keyPair.PublicKey,
 		signature,
 		messages,
@@ -60,13 +59,13 @@ func TestEndToEnd(t *testing.T) {
 	)
 	requireNoError(t, err)
 
-	err = bbs.VerifyProof(keyPair.Params, keyPair.PublicKey, proof, []bbs.RevealedMessage{
+	err = bbs.VerifyProof(keyPair.PublicKey, proof, []bbs.RevealedMessage{
 		{Index: 0, Data: messages[0]},
 		{Index: 2, Data: messages[2]},
 	})
 	requireNoError(t, err)
 
-	err = bbs.VerifyProof(keyPair.Params, keyPair.PublicKey, proof, []bbs.RevealedMessage{
+	err = bbs.VerifyProof(keyPair.PublicKey, proof, []bbs.RevealedMessage{
 		{Index: 0, Data: messages[0]},
 		{Index: 2, Data: []byte("1716328801")},
 	})
@@ -80,17 +79,16 @@ func TestNativePadding(t *testing.T) {
 		[]byte("active"),
 	}
 
-	keyPair, err := bbs.GenerateKeyPair(20)
+	keyPair, err := bbs.GenerateKeyPair(bbs.MaxMessageCount)
 	requireNoError(t, err)
 
-	signature, err := bbs.Sign(keyPair.Params, keyPair.SecretKey, messages)
+	signature, err := bbs.Sign(keyPair.SecretKey, messages)
 	requireNoError(t, err)
 
-	err = bbs.VerifySignature(keyPair.Params, keyPair.PublicKey, messages, signature)
+	err = bbs.VerifySignature(keyPair.PublicKey, messages, signature)
 	requireNoError(t, err)
 
 	proof, err := bbs.CreateProof(
-		keyPair.Params,
 		keyPair.PublicKey,
 		signature,
 		messages,
@@ -98,13 +96,13 @@ func TestNativePadding(t *testing.T) {
 	)
 	requireNoError(t, err)
 
-	err = bbs.VerifyProof(keyPair.Params, keyPair.PublicKey, proof, []bbs.RevealedMessage{
+	err = bbs.VerifyProof(keyPair.PublicKey, proof, []bbs.RevealedMessage{
 		{Index: 0, Data: messages[0]},
 		{Index: 2, Data: messages[2]},
 	})
 	requireNoError(t, err)
 
-	_, err = bbs.Sign(keyPair.Params, keyPair.SecretKey, make([][]byte, 21))
+	_, err = bbs.Sign(keyPair.SecretKey, make([][]byte, bbs.MaxMessageCount+1))
 	requireStatus(t, err, bbs.StatusTooManyMessages)
 }
 

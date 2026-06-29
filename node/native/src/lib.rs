@@ -17,7 +17,6 @@ pub fn pid_order() -> Vec<String> {
 
 #[napi(js_name = "verifyProof")]
 pub fn verify_proof(
-    params: Buffer,
     public_key: Buffer,
     proof: Buffer,
     revealed_messages: Vec<RevealedMessage>,
@@ -28,7 +27,6 @@ pub fn verify_proof(
         .collect::<Vec<_>>();
 
     match bbsplus_core::verify_proof_bytes(
-        params.as_ref(),
         public_key.as_ref(),
         proof.as_ref(),
         &revealed_messages,

@@ -71,7 +71,6 @@ int32_t bbs_generate_keypair(uint32_t message_count, BbsKeyPair *out_keypair);
 // Signs raw byte messages. If fewer messages are supplied than the params support, missing
 // slots are padded internally before messages are hashed by zero-based position.
 int32_t bbs_sign(
-    BbsByteSlice params,
     BbsByteSlice secret_key,
     const BbsMessage *messages,
     size_t message_count,
@@ -80,7 +79,6 @@ int32_t bbs_sign(
 // Verifies a signature over raw byte messages using the same padding and internal hashing as
 // bbs_sign.
 int32_t bbs_verify_signature(
-    BbsByteSlice params,
     BbsByteSlice public_key,
     const BbsMessage *messages,
     size_t message_count,
@@ -89,7 +87,6 @@ int32_t bbs_verify_signature(
 // Creates a selective-disclosure proof. Missing message slots are padded internally, and
 // revealed_indices are zero-based indexes in the padded message vector.
 int32_t bbs_create_proof(
-    BbsByteSlice params,
     BbsByteSlice public_key,
     BbsByteSlice signature,
     const BbsMessage *messages,
@@ -100,7 +97,6 @@ int32_t bbs_create_proof(
 
 // Verifies a selective-disclosure proof against the disclosed indexed raw messages.
 int32_t bbs_verify_proof(
-    BbsByteSlice params,
     BbsByteSlice public_key,
     BbsByteSlice proof,
     const BbsIndexedMessage *revealed_messages,

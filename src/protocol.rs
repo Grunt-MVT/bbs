@@ -1,5 +1,8 @@
 use std::ffi::c_char;
 
+/// Maximum number of messages supported by this wrapper's protocol params.
+pub const MAX_MESSAGE_COUNT: u32 = 20;
+
 /// PID identifiers as defined in
 /// https://eudi.dev/2.4.0/annexes/annex-3/annex-3.01-pid-rulebook/
 pub const PID_ORDER: [&str; 5] = [

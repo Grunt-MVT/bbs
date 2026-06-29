@@ -1,7 +1,6 @@
 const native: {
   pidOrder(): string[];
   verifyProof(
-    params: Uint8Array,
     publicKey: Uint8Array,
     proof: Uint8Array,
     revealedMessages: RevealedMessage[],
@@ -13,13 +12,14 @@ export type RevealedMessage = {
   data: Uint8Array;
 };
 
+export const maxMessageCount = 20;
+
 export const pidOrder: readonly string[] = Object.freeze([...native.pidOrder()]);
 
 export function verifyProof(
-  params: Uint8Array,
   publicKey: Uint8Array,
   proof: Uint8Array,
   revealedMessages: readonly RevealedMessage[],
 ): boolean {
-  return native.verifyProof(params, publicKey, proof, [...revealedMessages]);
+  return native.verifyProof(publicKey, proof, [...revealedMessages]);
 }

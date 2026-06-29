@@ -6,7 +6,7 @@ use std::ptr;
 use std::slice;
 
 mod protocol;
-pub use protocol::PID_ORDER;
+pub use protocol::{MAX_MESSAGE_COUNT, PID_ORDER};
 
 use ark_bls12_381::{Bls12_381, Fr};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
@@ -27,6 +27,7 @@ type Secret = SecretKey<Fr>;
 type Signature = SignatureG1<Bls12_381>;
 type Proof = PoKOfSignatureG1Proof<Bls12_381>;
 
+const API_ID: &[u8] = b"gruntmvt-bbsplus/v1";
 const MESSAGE_DOMAIN_PREFIX: &[u8] = b"bbs-ffi/v1/message/";
 const PADDING_MESSAGE: &[u8] = b"\xffbbsplus-padding-v1\xfe";
 
@@ -290,13 +291,17 @@ fn proof_challenge_from_proof(
     Ok(compute_random_oracle_challenge::<Fr, Blake2b512>(&bytes))
 }
 
+fn protocol_params() -> Params {
+    SignatureParamsG1::<Bls12_381>::new::<Blake2b512>(API_ID, MAX_MESSAGE_COUNT)
+}
+
 fn generate_keypair(message_count: u32) -> FfiResult<(Vec<u8>, Vec<u8>, Vec<u8>)> {
-    if message_count == 0 {
+    if message_count != MAX_MESSAGE_COUNT {
         return Err(FfiError::InvalidLength);
     }
 
     let mut rng = OsRng;
-    let params = Params::generate_using_rng(&mut rng, message_count);
+    let params = protocol_params();
     let keypair = KeypairG2::<Bls12_381>::generate_using_rng(&mut rng, &params);
 
     if !params.is_valid() || !keypair.public_key.is_valid() {
@@ -392,18 +397,16 @@ pub fn status_message(status: c_int) -> &'static str {
 }
 
 pub fn verify_proof_bytes(
-    params: &[u8],
     public_key: &[u8],
     proof: &[u8],
     revealed_messages: &[(u32, &[u8])],
 ) -> c_int {
     fn inner(
-        params: &[u8],
         public_key: &[u8],
         proof: &[u8],
         revealed_messages: &[(u32, &[u8])],
     ) -> FfiResult<()> {
-        let params = deserialize_compressed::<Params>(params)?;
+        let params = protocol_params();
         let public_key = deserialize_compressed::<PublicKey>(public_key)?;
         let proof = deserialize_compressed::<Proof>(proof)?;
         let mut messages = BTreeMap::new();
@@ -420,7 +423,7 @@ pub fn verify_proof_bytes(
     }
 
     match catch_unwind(AssertUnwindSafe(|| {
-        inner(params, public_key, proof, revealed_messages)
+        inner(public_key, proof, revealed_messages)
     })) {
         Ok(Ok(())) => BBS_OK,
         Ok(Err(err)) => err.code(),
@@ -513,14 +516,13 @@ pub unsafe extern "C" fn bbs_generate_keypair(
 /// for one `BbsByteBuffer`.
 #[no_mangle]
 pub unsafe extern "C" fn bbs_sign(
-    params: BbsByteSlice,
     secret_key: BbsByteSlice,
     messages: *const BbsMessage,
     message_count: usize,
     out_signature: *mut BbsByteBuffer,
 ) -> c_int {
     ffi_guard(|| {
-        let params = deserialize_compressed::<Params>(read_byte_slice(params)?)?;
+        let params = protocol_params();
         let secret_key = deserialize_compressed::<Secret>(read_byte_slice(secret_key)?)?;
         let mut raw_messages = read_messages(messages, message_count)?;
         pad_messages_to_params(&params, &mut raw_messages)?;
@@ -539,14 +541,13 @@ pub unsafe extern "C" fn bbs_sign(
 /// All input slices and the `messages` array must be valid for their lengths.
 #[no_mangle]
 pub unsafe extern "C" fn bbs_verify_signature(
-    params: BbsByteSlice,
     public_key: BbsByteSlice,
     messages: *const BbsMessage,
     message_count: usize,
     signature: BbsByteSlice,
 ) -> c_int {
     ffi_guard(|| {
-        let params = deserialize_compressed::<Params>(read_byte_slice(params)?)?;
+        let params = protocol_params();
         let public_key = deserialize_compressed::<PublicKey>(read_byte_slice(public_key)?)?;
         let signature = deserialize_compressed::<Signature>(read_byte_slice(signature)?)?;
         let mut raw_messages = read_messages(messages, message_count)?;
@@ -568,7 +569,6 @@ pub unsafe extern "C" fn bbs_verify_signature(
 /// memory for one `BbsByteBuffer`.
 #[no_mangle]
 pub unsafe extern "C" fn bbs_create_proof(
-    params: BbsByteSlice,
     public_key: BbsByteSlice,
     signature: BbsByteSlice,
     messages: *const BbsMessage,
@@ -578,7 +578,7 @@ pub unsafe extern "C" fn bbs_create_proof(
     out_proof: *mut BbsByteBuffer,
 ) -> c_int {
     ffi_guard(|| {
-        let params = deserialize_compressed::<Params>(read_byte_slice(params)?)?;
+        let params = protocol_params();
         let public_key = deserialize_compressed::<PublicKey>(read_byte_slice(public_key)?)?;
         let signature = deserialize_compressed::<Signature>(read_byte_slice(signature)?)?;
         let mut raw_messages = read_messages(messages, message_count)?;
@@ -606,14 +606,13 @@ pub unsafe extern "C" fn bbs_create_proof(
 /// All input slices and the `revealed_messages` array must be valid for their lengths.
 #[no_mangle]
 pub unsafe extern "C" fn bbs_verify_proof(
-    params: BbsByteSlice,
     public_key: BbsByteSlice,
     proof: BbsByteSlice,
     revealed_messages: *const BbsIndexedMessage,
     revealed_message_count: usize,
 ) -> c_int {
     ffi_guard(|| {
-        let params = deserialize_compressed::<Params>(read_byte_slice(params)?)?;
+        let params = protocol_params();
         let public_key = deserialize_compressed::<PublicKey>(read_byte_slice(public_key)?)?;
         let proof = deserialize_compressed::<Proof>(read_byte_slice(proof)?)?;
         let revealed_messages = read_revealed_messages(revealed_messages, revealed_message_count)?;
@@ -662,7 +661,7 @@ mod tests {
     fn sign_and_verify_round_trip() {
         unsafe {
             let mut keypair = BbsKeyPair::default();
-            assert_eq!(bbs_generate_keypair(3, &mut keypair), BBS_OK);
+            assert_eq!(bbs_generate_keypair(MAX_MESSAGE_COUNT, &mut keypair), BBS_OK);
 
             let messages = [
                 b"alice".as_slice(),
@@ -674,7 +673,6 @@ mod tests {
             let mut signature = BbsByteBuffer::default();
             assert_eq!(
                 bbs_sign(
-                    buffer_slice(keypair.params),
                     buffer_slice(keypair.secret_key),
                     ffi_messages.as_ptr(),
                     ffi_messages.len(),
@@ -685,7 +683,6 @@ mod tests {
 
             assert_eq!(
                 bbs_verify_signature(
-                    buffer_slice(keypair.params),
                     buffer_slice(keypair.public_key),
                     ffi_messages.as_ptr(),
                     ffi_messages.len(),
@@ -701,7 +698,6 @@ mod tests {
             ];
             assert_eq!(
                 bbs_verify_signature(
-                    buffer_slice(keypair.params),
                     buffer_slice(keypair.public_key),
                     bad_messages.as_ptr(),
                     bad_messages.len(),
@@ -719,7 +715,7 @@ mod tests {
     fn create_and_verify_proof_round_trip() {
         unsafe {
             let mut keypair = BbsKeyPair::default();
-            assert_eq!(bbs_generate_keypair(3, &mut keypair), BBS_OK);
+            assert_eq!(bbs_generate_keypair(MAX_MESSAGE_COUNT, &mut keypair), BBS_OK);
 
             let messages = [
                 b"alice".as_slice(),
@@ -731,7 +727,6 @@ mod tests {
             let mut signature = BbsByteBuffer::default();
             assert_eq!(
                 bbs_sign(
-                    buffer_slice(keypair.params),
                     buffer_slice(keypair.secret_key),
                     ffi_messages.as_ptr(),
                     ffi_messages.len(),
@@ -744,7 +739,6 @@ mod tests {
             let mut proof = BbsByteBuffer::default();
             assert_eq!(
                 bbs_create_proof(
-                    buffer_slice(keypair.params),
                     buffer_slice(keypair.public_key),
                     buffer_slice(signature),
                     ffi_messages.as_ptr(),
@@ -762,7 +756,6 @@ mod tests {
             ];
             assert_eq!(
                 bbs_verify_proof(
-                    buffer_slice(keypair.params),
                     buffer_slice(keypair.public_key),
                     buffer_slice(proof),
                     revealed_messages.as_ptr(),
@@ -777,7 +770,6 @@ mod tests {
             ];
             assert_eq!(
                 bbs_verify_proof(
-                    buffer_slice(keypair.params),
                     buffer_slice(keypair.public_key),
                     buffer_slice(proof),
                     tampered_revealed_messages.as_ptr(),
@@ -796,7 +788,7 @@ mod tests {
     fn pads_messages_to_params_count() {
         unsafe {
             let mut keypair = BbsKeyPair::default();
-            assert_eq!(bbs_generate_keypair(20, &mut keypair), BBS_OK);
+            assert_eq!(bbs_generate_keypair(MAX_MESSAGE_COUNT, &mut keypair), BBS_OK);
 
             let messages = [
                 b"alice".as_slice(),
@@ -809,7 +801,6 @@ mod tests {
             let mut signature = BbsByteBuffer::default();
             assert_eq!(
                 bbs_sign(
-                    buffer_slice(keypair.params),
                     buffer_slice(keypair.secret_key),
                     ffi_messages.as_ptr(),
                     ffi_messages.len(),
@@ -820,7 +811,6 @@ mod tests {
 
             assert_eq!(
                 bbs_verify_signature(
-                    buffer_slice(keypair.params),
                     buffer_slice(keypair.public_key),
                     ffi_messages.as_ptr(),
                     ffi_messages.len(),
@@ -833,7 +823,6 @@ mod tests {
             let mut proof = BbsByteBuffer::default();
             assert_eq!(
                 bbs_create_proof(
-                    buffer_slice(keypair.params),
                     buffer_slice(keypair.public_key),
                     buffer_slice(signature),
                     ffi_messages.as_ptr(),
@@ -851,7 +840,6 @@ mod tests {
             ];
             assert_eq!(
                 bbs_verify_proof(
-                    buffer_slice(keypair.params),
                     buffer_slice(keypair.public_key),
                     buffer_slice(proof),
                     revealed_messages.as_ptr(),
@@ -870,17 +858,14 @@ mod tests {
     fn rejects_more_messages_than_params_support() {
         unsafe {
             let mut keypair = BbsKeyPair::default();
-            assert_eq!(bbs_generate_keypair(2, &mut keypair), BBS_OK);
+            assert_eq!(bbs_generate_keypair(MAX_MESSAGE_COUNT, &mut keypair), BBS_OK);
 
-            let messages = [
-                ffi_message(b"alice"),
-                ffi_message(b"US"),
-                ffi_message(b"active"),
-            ];
+            let messages = (0..21)
+                .map(|_| ffi_message(b"alice"))
+                .collect::<Vec<_>>();
             let mut signature = BbsByteBuffer::default();
             assert_eq!(
                 bbs_sign(
-                    buffer_slice(keypair.params),
                     buffer_slice(keypair.secret_key),
                     messages.as_ptr(),
                     messages.len(),
@@ -897,13 +882,12 @@ mod tests {
     fn rejects_tampered_signature_bytes() {
         unsafe {
             let mut keypair = BbsKeyPair::default();
-            assert_eq!(bbs_generate_keypair(1, &mut keypair), BBS_OK);
+            assert_eq!(bbs_generate_keypair(MAX_MESSAGE_COUNT, &mut keypair), BBS_OK);
 
             let message = [ffi_message(b"alice")];
             let mut signature = BbsByteBuffer::default();
             assert_eq!(
                 bbs_sign(
-                    buffer_slice(keypair.params),
                     buffer_slice(keypair.secret_key),
                     message.as_ptr(),
                     message.len(),
@@ -918,7 +902,6 @@ mod tests {
 
             assert_ne!(
                 bbs_verify_signature(
-                    buffer_slice(keypair.params),
                     buffer_slice(keypair.public_key),
                     message.as_ptr(),
                     message.len(),
