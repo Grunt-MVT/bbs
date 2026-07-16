@@ -119,7 +119,7 @@ See [`go`](go) for the wrapper package and an end-to-end test covering key gener
 The Node package exposes only protocol metadata and proof verification:
 
 ```ts
-import { maxMessageCount, pidOrder, verifyProof } from "@grunt-mvt/bbs-node";
+import { maxMessageCount, pidOrder, verifyProof } from "@lithosid/bbs-node";
 
 const ok = verifyProof(publicKeyBytes, proofBytes, [
   { index: 0, data: Buffer.from("Doe") },

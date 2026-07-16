@@ -1,7 +1,6 @@
 {
-  "name": "@grunt-mvt/bbs-node",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@lithosid/bbs-node",
+  "version": "0.1.2",
   "type": "commonjs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
