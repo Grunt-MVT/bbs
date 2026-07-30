@@ -107,12 +107,13 @@ func TestNativePadding(t *testing.T) {
 }
 
 func TestPIDOrder(t *testing.T) {
-	want := [5]string{
+	want := [6]string{
 		"family_name",
 		"given_name",
 		"birth_date",
 		"birth_place",
 		"nationality",
+		"nationality_matched",
 	}
 
 	if bbs.PIDOrder != want {

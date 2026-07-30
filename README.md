@@ -136,6 +136,7 @@ const ok = verifyProof(publicKeyBytes, proofBytes, [
   "birth_date",
   "birth_place",
   "nationality",
+  "nationality_matched",
 ]
 ```
 

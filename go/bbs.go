@@ -20,7 +20,7 @@ import (
 	"unsafe"
 )
 
-const pidOrderLen = 5
+const pidOrderLen = 6
 
 // MaxMessageCount is the protocol message capacity used for key generation and padding.
 const MaxMessageCount = 20

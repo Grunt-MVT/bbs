@@ -7,7 +7,7 @@ import (
 	"fmt"
 )
 
-const pidOrderLen = 5
+const pidOrderLen = 6
 
 // MaxMessageCount is the protocol message capacity used for key generation and padding.
 const MaxMessageCount = 20
@@ -31,6 +31,7 @@ var PIDOrder = [pidOrderLen]string{
 	"birth_date",
 	"birth_place",
 	"nationality",
+	"nationality_matched",
 }
 
 var errUnsupported = errors.New("libbbsplus: bundled native library is available only on linux/amd64 or darwin/arm64 with cgo enabled")
