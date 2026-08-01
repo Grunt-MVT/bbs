@@ -1,6 +1,6 @@
 {
   "name": "@lithosid/bbs-node",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "commonjs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -8,7 +8,8 @@
     "build": "npm run build:native && npm run build:ts",
     "build:native": "cargo build --release --manifest-path native/Cargo.toml && node scripts/copy-native.cjs",
     "build:ts": "tsc -p tsconfig.json",
-    "test": "node --test dist/*.test.js"
+    "test": "node --test dist/*.test.js",
+    "publish": "npm stage publish"
   },
   "devDependencies": {
     "@types/node": "^18.19.130",
