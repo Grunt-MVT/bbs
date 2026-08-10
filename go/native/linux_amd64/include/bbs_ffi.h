@@ -65,6 +65,21 @@ const char *bbs_status_message(int32_t status);
 // The returned strings are static and owned by the library.
 BbsStringArray bbs_pid_order(void);
 
+// Trims leading/trailing whitespace and uppercases a UTF-8 string.
+// On success, out is owned by the caller and must be freed with bbs_free_buffer.
+int32_t bbs_canonical_string(BbsByteSlice input, BbsByteBuffer *out);
+
+// Canonicalizes a nationality code to exactly two ASCII letters A-Z.
+// On success, out is owned by the caller and must be freed with bbs_free_buffer.
+int32_t bbs_canonical_nationality(BbsByteSlice input, BbsByteBuffer *out);
+
+// Canonicalizes nationality codes, sorts them alphabetically, and concatenates.
+// On success, out is owned by the caller and must be freed with bbs_free_buffer.
+int32_t bbs_canonical_nationality_list(
+    const char *const *items,
+    size_t item_count,
+    BbsByteBuffer *out);
+
 // Generates Dock-compatible signature params and a BBS+ keypair for message_count messages.
 int32_t bbs_generate_keypair(uint32_t message_count, BbsKeyPair *out_keypair);
 
