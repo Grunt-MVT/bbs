@@ -153,6 +153,8 @@ canonicalNationalityList(["it", "pl", "cz "]); // "CZITPL"
 
 All Node crypto inputs are raw bytes (`Uint8Array` or `Buffer`). Store public keys and proofs with binary-safe encodings such as base64 before placing them in JSON, environment variables, or secret vaults. Proof verification uses the same fixed `maxMessageCount` (20) as the Go package.
 
+The package vendors prebuilt N-API addons for Apple Silicon macOS (`darwin/arm64`) and Linux AMD64 (`linux/amd64`), selected automatically at runtime. Other platforms are unsupported unless you rebuild the addon locally with Rust.
+
 Build and test the Node package locally:
 
 ```sh

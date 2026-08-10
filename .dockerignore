@@ -4,6 +4,6 @@ dist
 .cargo-home*
 .DS_Store
 node/dist
-node/native/*.node
+node/native/bbsplus_node.node
 node/native/target
 node/node_modules

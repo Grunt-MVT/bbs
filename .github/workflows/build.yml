@@ -41,21 +41,21 @@ jobs:
       - name: Test Node package
         run: make test-node
 
-      - name: Commit vendored Go native library
+      - name: Commit vendored native libraries
         if: github.actor != 'github-actions[bot]'
         run: |
           git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
-          git status --short -- go/native/linux_amd64
+          git status --short -- go/native/linux_amd64 node/native/linux_amd64
 
-          if [ -z "$(git status --porcelain -- go/native/linux_amd64)" ]; then
+          if [ -z "$(git status --porcelain -- go/native/linux_amd64 node/native/linux_amd64)" ]; then
             echo "No vendored native changes to commit."
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add go/native/linux_amd64
-          git commit -m "Update vendored Linux AMD64 native library"
+          git add go/native/linux_amd64 node/native/linux_amd64
+          git commit -m "Update vendored Linux AMD64 native libraries"
           git push origin "HEAD:${GITHUB_REF_NAME}"
 
       - name: Build, test, and package in Docker
@@ -106,21 +106,21 @@ jobs:
       - name: Package Darwin ARM64 artifact
         run: make package-darwin-arm64
 
-      - name: Commit vendored Go native library
+      - name: Commit vendored native libraries
         if: github.actor != 'github-actions[bot]'
         run: |
           git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
-          git status --short -- go/native/darwin_arm64
+          git status --short -- go/native/darwin_arm64 node/native/darwin_arm64
 
-          if [ -z "$(git status --porcelain -- go/native/darwin_arm64)" ]; then
+          if [ -z "$(git status --porcelain -- go/native/darwin_arm64 node/native/darwin_arm64)" ]; then
             echo "No vendored Darwin native changes to commit."
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add go/native/darwin_arm64
-          git commit -m "Update vendored Darwin ARM64 native library"
+          git add go/native/darwin_arm64 node/native/darwin_arm64
+          git commit -m "Update vendored Darwin ARM64 native libraries"
           git push origin "HEAD:${GITHUB_REF_NAME}"
 
       - name: Upload Darwin ARM64 artifact

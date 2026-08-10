@@ -3,7 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { pidOrder, verifyProof, type RevealedMessage } from "./index";
+import {
+  nativeAddonPathForTest,
+  pidOrder,
+  verifyProof,
+  type RevealedMessage,
+} from "./index";
 
 type Fixture = {
   publicKey: string;
@@ -41,6 +46,12 @@ test("pidOrder exposes protocol PID identifiers", () => {
     "nationality",
     "derived_nationality",
   ]);
+});
+
+test("loads platform-specific native addon", () => {
+  const addonPath = nativeAddonPathForTest();
+  assert.match(addonPath, /native\/(darwin_arm64|linux_amd64)\/bbsplus_node\.node$/);
+  assert.ok(fs.existsSync(addonPath), `missing native addon at ${addonPath}`);
 });
 
 test("verifyProof returns true for a valid proof", () => {

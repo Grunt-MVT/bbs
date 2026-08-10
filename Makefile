@@ -9,6 +9,8 @@ DARWIN_ARTIFACT_NAME := libbbsplus-darwin-arm64
 STATIC_LIB := libbbsplus.a
 GO_NATIVE_LINUX_AMD64_DIR := $(ROOT_DIR)/go/native/linux_amd64
 GO_NATIVE_DARWIN_ARM64_DIR := $(ROOT_DIR)/go/native/darwin_arm64
+NODE_NATIVE_LINUX_AMD64_DIR := $(ROOT_DIR)/node/native/linux_amd64
+NODE_NATIVE_DARWIN_ARM64_DIR := $(ROOT_DIR)/node/native/darwin_arm64
 DOCKER_IMAGE ?= libbbsplus-ci
 
 .PHONY: test
@@ -30,6 +32,22 @@ build-node:
 .PHONY: test-node
 test-node: build-node
 	cd "$(ROOT_DIR)/node" && npm test
+
+.PHONY: sync-node-native-linux-amd64
+sync-node-native-linux-amd64:
+	test "$$(uname -s)" = "Linux" && test "$$(uname -m)" = "x86_64" || \
+		(echo "sync-node-native-linux-amd64 must run on Linux/amd64" && exit 1)
+	$(MAKE) build-node
+	test -f "$(NODE_NATIVE_LINUX_AMD64_DIR)/bbsplus_node.node" || \
+		(echo "missing $(NODE_NATIVE_LINUX_AMD64_DIR)/bbsplus_node.node" && exit 1)
+
+.PHONY: sync-node-native-darwin-arm64
+sync-node-native-darwin-arm64:
+	test "$$(uname -s)" = "Darwin" && test "$$(uname -m)" = "arm64" || \
+		(echo "sync-node-native-darwin-arm64 must run on Darwin/arm64" && exit 1)
+	$(MAKE) build-node
+	test -f "$(NODE_NATIVE_DARWIN_ARM64_DIR)/bbsplus_node.node" || \
+		(echo "missing $(NODE_NATIVE_DARWIN_ARM64_DIR)/bbsplus_node.node" && exit 1)
 
 .PHONY: sync-go-native-linux-amd64
 sync-go-native-linux-amd64: build-release
