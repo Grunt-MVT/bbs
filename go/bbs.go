@@ -177,6 +177,45 @@ func VerifyProof(publicKey, proof []byte, revealed []RevealedMessage) error {
 	))
 }
 
+// CanonicalString trims leading/trailing whitespace and uppercases value.
+func CanonicalString(value string) (string, error) {
+	cInput, freeInput := cByteSlice([]byte(value))
+	defer freeInput()
+
+	var out C.BbsByteBuffer
+	if err := statusError(C.bbs_canonical_string(cInput, &out)); err != nil {
+		return "", err
+	}
+	defer C.bbs_free_buffer(out)
+	return string(bytesFromBuffer(out)), nil
+}
+
+// CanonicalNationality canonicalizes a nationality code to two ASCII letters A-Z.
+func CanonicalNationality(value string) (string, error) {
+	cInput, freeInput := cByteSlice([]byte(value))
+	defer freeInput()
+
+	var out C.BbsByteBuffer
+	if err := statusError(C.bbs_canonical_nationality(cInput, &out)); err != nil {
+		return "", err
+	}
+	defer C.bbs_free_buffer(out)
+	return string(bytesFromBuffer(out)), nil
+}
+
+// CanonicalNationalityList canonicalizes nationality codes, sorts them, and concatenates.
+func CanonicalNationalityList(values []string) (string, error) {
+	cItems, freeItems := cCStrings(values)
+	defer freeItems()
+
+	var out C.BbsByteBuffer
+	if err := statusError(C.bbs_canonical_nationality_list(cItems, C.size_t(len(values)), &out)); err != nil {
+		return "", err
+	}
+	defer C.bbs_free_buffer(out)
+	return string(bytesFromBuffer(out)), nil
+}
+
 func statusError(code C.int32_t) error {
 	if code == C.BBS_OK {
 		return nil
@@ -220,6 +259,25 @@ func cByteSlice(data []byte) (C.BbsByteSlice, func()) {
 		}, func() {
 			C.free(raw)
 		}
+}
+
+func cCStrings(values []string) (**C.char, func()) {
+	if len(values) == 0 {
+		return nil, func() {}
+	}
+
+	raw := C.malloc(C.size_t(len(values)) * C.size_t(unsafe.Sizeof(uintptr(0))))
+	out := unsafe.Slice((**C.char)(raw), len(values))
+	for i, value := range values {
+		out[i] = C.CString(value)
+	}
+
+	return (**C.char)(raw), func() {
+		for _, value := range out {
+			C.free(unsafe.Pointer(value))
+		}
+		C.free(raw)
+	}
 }
 
 func cMessages(messages [][]byte) (*C.BbsMessage, func()) {

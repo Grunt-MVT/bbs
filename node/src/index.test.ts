@@ -39,7 +39,7 @@ test("pidOrder exposes protocol PID identifiers", () => {
     "birth_date",
     "birth_place",
     "nationality",
-    "nationality_matched",
+    "derived_nationality",
   ]);
 });
 

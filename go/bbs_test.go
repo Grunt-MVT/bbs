@@ -113,7 +113,7 @@ func TestPIDOrder(t *testing.T) {
 		"birth_date",
 		"birth_place",
 		"nationality",
-		"nationality_matched",
+		"derived_nationality",
 	}
 
 	if bbs.PIDOrder != want {

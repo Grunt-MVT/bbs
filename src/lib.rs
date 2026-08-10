@@ -6,7 +6,10 @@ use std::ptr;
 use std::slice;
 
 mod protocol;
+mod utils;
+
 pub use protocol::{MAX_MESSAGE_COUNT, PID_ORDER};
+pub use utils::{canonical_nationality, canonical_nationality_list, canonical_string, UtilsError};
 
 use ark_bls12_381::{Bls12_381, Fr};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
@@ -43,7 +46,7 @@ pub const BBS_ERROR_TOO_MANY_MSGS: c_int = 8;
 pub const BBS_ERROR_PANIC: c_int = 255;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-enum FfiError {
+pub(crate) enum FfiError {
     NullPointer,
     InvalidLength,
     InvalidIndex,
@@ -55,7 +58,7 @@ enum FfiError {
 }
 
 impl FfiError {
-    fn code(self) -> c_int {
+    pub(crate) fn code(self) -> c_int {
         match self {
             FfiError::NullPointer => BBS_ERROR_NULL_POINTER,
             FfiError::InvalidLength => BBS_ERROR_INVALID_LENGTH,
@@ -69,7 +72,7 @@ impl FfiError {
     }
 }
 
-type FfiResult<T> = Result<T, FfiError>;
+pub(crate) type FfiResult<T> = Result<T, FfiError>;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -117,7 +120,7 @@ pub struct BbsKeyPair {
     pub public_key: BbsByteBuffer,
 }
 
-fn ffi_guard(op: impl FnOnce() -> FfiResult<()>) -> c_int {
+pub(crate) fn ffi_guard(op: impl FnOnce() -> FfiResult<()>) -> c_int {
     match catch_unwind(AssertUnwindSafe(op)) {
         Ok(Ok(())) => BBS_OK,
         Ok(Err(err)) => err.code(),
@@ -125,7 +128,7 @@ fn ffi_guard(op: impl FnOnce() -> FfiResult<()>) -> c_int {
     }
 }
 
-unsafe fn read_bytes<'a>(data: *const u8, len: usize) -> FfiResult<&'a [u8]> {
+pub(crate) unsafe fn read_bytes<'a>(data: *const u8, len: usize) -> FfiResult<&'a [u8]> {
     if len == 0 {
         return Ok(&[]);
     }
@@ -135,7 +138,7 @@ unsafe fn read_bytes<'a>(data: *const u8, len: usize) -> FfiResult<&'a [u8]> {
     Ok(slice::from_raw_parts(data, len))
 }
 
-unsafe fn read_slice<'a, T>(data: *const T, len: usize) -> FfiResult<&'a [T]> {
+pub(crate) unsafe fn read_slice<'a, T>(data: *const T, len: usize) -> FfiResult<&'a [T]> {
     if len == 0 {
         return Ok(&[]);
     }
@@ -145,7 +148,7 @@ unsafe fn read_slice<'a, T>(data: *const T, len: usize) -> FfiResult<&'a [T]> {
     Ok(slice::from_raw_parts(data, len))
 }
 
-unsafe fn read_byte_slice<'a>(slice: BbsByteSlice) -> FfiResult<&'a [u8]> {
+pub(crate) unsafe fn read_byte_slice<'a>(slice: BbsByteSlice) -> FfiResult<&'a [u8]> {
     read_bytes(slice.data, slice.len)
 }
 
@@ -217,7 +220,7 @@ unsafe fn free_buffer(buffer: BbsByteBuffer) {
     drop(Box::from_raw(data));
 }
 
-fn write_buffer(out: *mut BbsByteBuffer, bytes: Vec<u8>) -> FfiResult<()> {
+pub(crate) fn write_buffer(out: *mut BbsByteBuffer, bytes: Vec<u8>) -> FfiResult<()> {
     if out.is_null() {
         return Err(FfiError::NullPointer);
     }

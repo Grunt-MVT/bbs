@@ -116,15 +116,24 @@ See [`go`](go) for the wrapper package and an end-to-end test covering key gener
 
 ## Node/TypeScript Usage
 
-The Node package exposes only protocol metadata and proof verification:
+The Node package exposes protocol metadata, string canonicalization helpers, and proof verification:
 
 ```ts
-import { maxMessageCount, pidOrder, verifyProof } from "@lithosid/bbs-node";
+import {
+  maxMessageCount,
+  pidOrder,
+  canonicalString,
+  canonicalNationality,
+  canonicalNationalityList,
+  verifyProof,
+} from "@lithosid/bbs-node";
 
 const ok = verifyProof(publicKeyBytes, proofBytes, [
   { index: 0, data: Buffer.from("Doe") },
   { index: 2, data: Buffer.from("1990-01-01") },
 ]);
+
+canonicalNationalityList(["it", "pl", "cz "]); // "CZITPL"
 ```
 
 `pidOrder` is the ordered PID identifier list:
@@ -136,11 +145,13 @@ const ok = verifyProof(publicKeyBytes, proofBytes, [
   "birth_date",
   "birth_place",
   "nationality",
-  "nationality_matched",
+  "derived_nationality",
 ]
 ```
 
-All Node inputs are raw bytes (`Uint8Array` or `Buffer`). Store public keys and proofs with binary-safe encodings such as base64 before placing them in JSON, environment variables, or secret vaults. Proof verification uses the same fixed `maxMessageCount` (20) as the Go package.
+`canonicalString` trims and uppercases. `canonicalNationality` requires exactly two ASCII letters `A`–`Z` after that normalization. `canonicalNationalityList` applies the same rule to each entry, sorts, and concatenates.
+
+All Node crypto inputs are raw bytes (`Uint8Array` or `Buffer`). Store public keys and proofs with binary-safe encodings such as base64 before placing them in JSON, environment variables, or secret vaults. Proof verification uses the same fixed `maxMessageCount` (20) as the Go package.
 
 Build and test the Node package locally:
 

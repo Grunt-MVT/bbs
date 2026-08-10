@@ -31,7 +31,7 @@ var PIDOrder = [pidOrderLen]string{
 	"birth_date",
 	"birth_place",
 	"nationality",
-	"nationality_matched",
+	"derived_nationality",
 }
 
 var errUnsupported = errors.New("libbbsplus: bundled native library is available only on linux/amd64 or darwin/arm64 with cgo enabled")
@@ -91,4 +91,19 @@ func CreateProof(publicKey, signature []byte, messages [][]byte, revealed []uint
 // VerifyProof verifies a selective-disclosure proof against the revealed raw messages.
 func VerifyProof(publicKey, proof []byte, revealed []RevealedMessage) error {
 	return errUnsupported
+}
+
+// CanonicalString trims leading/trailing whitespace and uppercases value.
+func CanonicalString(value string) (string, error) {
+	return "", errUnsupported
+}
+
+// CanonicalNationality canonicalizes a nationality code to two ASCII letters A-Z.
+func CanonicalNationality(value string) (string, error) {
+	return "", errUnsupported
+}
+
+// CanonicalNationalityList canonicalizes nationality codes, sorts them, and concatenates.
+func CanonicalNationalityList(values []string) (string, error) {
+	return "", errUnsupported
 }

@@ -15,6 +15,38 @@ pub fn pid_order() -> Vec<String> {
         .collect()
 }
 
+#[napi(js_name = "canonicalString")]
+pub fn canonical_string(value: String) -> String {
+    bbsplus_core::canonical_string(&value)
+}
+
+#[napi(js_name = "canonicalNationality")]
+pub fn canonical_nationality(value: String) -> Result<String> {
+    bbsplus_core::canonical_nationality(&value).map_err(|_| {
+        Error::new(
+            Status::GenericFailure,
+            format!(
+                "libbbsplus: {}",
+                bbsplus_core::status_message(bbsplus_core::BBS_ERROR_INVALID_LENGTH)
+            ),
+        )
+    })
+}
+
+#[napi(js_name = "canonicalNationalityList")]
+pub fn canonical_nationality_list(values: Vec<String>) -> Result<String> {
+    let refs = values.iter().map(String::as_str).collect::<Vec<_>>();
+    bbsplus_core::canonical_nationality_list(&refs).map_err(|_| {
+        Error::new(
+            Status::GenericFailure,
+            format!(
+                "libbbsplus: {}",
+                bbsplus_core::status_message(bbsplus_core::BBS_ERROR_INVALID_LENGTH)
+            ),
+        )
+    })
+}
+
 #[napi(js_name = "verifyProof")]
 pub fn verify_proof(
     public_key: Buffer,

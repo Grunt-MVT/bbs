@@ -12,7 +12,7 @@ pub const PID_ORDER: [&str; 6] = [
     "birth_place",
     "nationality",
     // Used to verify whether someone's nationality appears in their nationalities list.
-    "nationality_matched",
+    "derived_nationality",
 ];
 
 #[repr(C)]
@@ -32,7 +32,7 @@ const PID_GIVEN_NAME: &[u8] = b"given_name\0";
 const PID_BIRTH_DATE: &[u8] = b"birth_date\0";
 const PID_BIRTH_PLACE: &[u8] = b"birth_place\0";
 const PID_NATIONALITY: &[u8] = b"nationality\0";
-const PID_NATIONALITY_MATCHED: &[u8] = b"nationality_matched\0";
+const PID_DERIVED_NATIONALITY: &[u8] = b"derived_nationality\0";
 
 static PID_ORDER_C: [StaticStrPtr; PID_ORDER.len()] = [
     StaticStrPtr(PID_FAMILY_NAME.as_ptr().cast()),
@@ -40,7 +40,7 @@ static PID_ORDER_C: [StaticStrPtr; PID_ORDER.len()] = [
     StaticStrPtr(PID_BIRTH_DATE.as_ptr().cast()),
     StaticStrPtr(PID_BIRTH_PLACE.as_ptr().cast()),
     StaticStrPtr(PID_NATIONALITY.as_ptr().cast()),
-    StaticStrPtr(PID_NATIONALITY_MATCHED.as_ptr().cast()),
+    StaticStrPtr(PID_DERIVED_NATIONALITY.as_ptr().cast()),
 ];
 
 /// Returns the ordered PID identifiers supported by this wrapper.
