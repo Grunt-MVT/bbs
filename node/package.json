@@ -11,13 +11,17 @@
   ],
   "scripts": {
     "build": "npm run build:native && npm run build:ts",
-    "build:native": "cargo build --release --manifest-path native/Cargo.toml && node scripts/copy-native.cjs",
+    "build:native": "node-gyp rebuild --directory native && node scripts/copy-native.cjs",
     "build:ts": "tsc -p tsconfig.json",
     "test": "node --test dist/*.test.js",
     "publish": "npm stage publish"
   },
+  "dependencies": {
+    "node-addon-api": "^8.3.1"
+  },
   "devDependencies": {
     "@types/node": "^18.19.130",
+    "node-gyp": "^11.2.0",
     "typescript": "^5.9.3"
   }
 }

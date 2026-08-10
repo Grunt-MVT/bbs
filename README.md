@@ -1,8 +1,25 @@
 # libbbsplus
 
-`libbbsplus` is a small FFI wrapper over Dock's BBS+ Rust library. It exposes a C ABI and a Go package so services written in Go can generate keys, sign and verify messages, and create and verify selective-disclosure proofs without binding directly to Dock's Rust types.
+`libbbsplus` is a small FFI wrapper over Dock's BBS+ Rust library. It exposes a **C ABI** as the stable native boundary. Go and Node bindings are thin adapters over that ABI—they do not reimplement cryptography.
 
-The Go package vendors static native archives for Linux AMD64 and Apple Silicon macOS, so users on those targets do not need to pass cgo compiler/linker flags or configure runtime library paths. Public native functions keep the `bbs_` prefix and are declared in [`include/bbs_ffi.h`](include/bbs_ffi.h).
+```text
+                 Rust BBS implementation
+                            │
+                            ▼
+                     C ABI (bbs_ffi.h)
+                       libbbsplus.a
+                            │
+               ┌────────────┴────────────┐
+               ▼                         ▼
+          Go / cgo                  Node N-API
+               │                         │
+               ▼                         ▼
+          Go package              bbsplus_node.node
+```
+
+The expensive BBS core is compiled **once per OS/arch** into `libbbsplus.a`. Go links that archive via cgo; the Node addon statically links the same archive into a self-contained `.node` file.
+
+The Go package vendors static native archives for Linux AMD64 and Apple Silicon macOS. The Node package vendors matching prebuilt addons for the same targets. Public native functions keep the `bbs_` prefix and are declared in [`include/bbs_ffi.h`](include/bbs_ffi.h).
 
 ## What It Exposes
 
@@ -30,25 +47,43 @@ Run the Rust checks on your host:
 make test
 ```
 
-Build and test the Linux AMD64 Rust and Go package in Docker:
+Build the shared core once for the host target:
+
+```sh
+make build-release
+```
+
+That produces `target/release/libbbsplus.a` (and the accompanying rlib used only by Rust tests).
+
+### Darwin ARM64
+
+```sh
+make sync-go-native-darwin-arm64   # core → go/native/darwin_arm64
+make test-go-ffi
+make sync-node-native-darwin-arm64 # links core into node/native/darwin_arm64/bbsplus_node.node
+make package-darwin-arm64
+```
+
+### Linux AMD64
+
+Preferred path in CI/Docker (glibc / Debian bookworm):
 
 ```sh
 make docker-ci
-```
-
-Build the ready-to-use Linux AMD64 artifact:
-
-```sh
 make docker-artifacts
+make docker-sync-go-native-linux-amd64
 ```
 
-Build and test the Apple Silicon macOS package on an M-series Mac:
+On a Linux AMD64 host:
 
 ```sh
-make sync-go-native-darwin-arm64
+make sync-go-native-linux-amd64
 make test-go-ffi
-make package-darwin-arm64
+make sync-node-native-linux-amd64
+make package-linux-amd64
 ```
+
+**musl:** not used. Targets are glibc-based (Debian bookworm in Docker, typical Ubuntu/AL Node hosts). Replacing glibc builds with musl would break loading under glibc Node runtimes (including common Vercel/AWS Linux environments). A separate musl target could be added later if needed; it should not replace the glibc Linux artifact.
 
 The Linux artifact is written to:
 
@@ -153,9 +188,11 @@ canonicalNationalityList(["it", "pl", "cz "]); // "CZITPL"
 
 All Node crypto inputs are raw bytes (`Uint8Array` or `Buffer`). Store public keys and proofs with binary-safe encodings such as base64 before placing them in JSON, environment variables, or secret vaults. Proof verification uses the same fixed `maxMessageCount` (20) as the Go package.
 
-The package vendors prebuilt N-API addons for Apple Silicon macOS (`darwin/arm64`) and Linux AMD64 (`linux/amd64`), selected automatically at runtime. Other platforms are unsupported unless you rebuild the addon locally with Rust.
+The package vendors prebuilt N-API addons for Apple Silicon macOS (`darwin/arm64`) and Linux AMD64 (`linux/amd64`). At load time [`node/src/index.ts`](node/src/index.ts) selects `native/<os>_<arch>/bbsplus_node.node` from `process.platform` and `process.arch`, so a macOS build cannot be loaded on Linux. Other platforms throw a clear unsupported-platform error.
 
-Build and test the Node package locally:
+The N-API addon is a thin **C++** adapter (`node-addon-api`): it translates JS values to C ABI types and statically links `libbbsplus.a` (from `make build-release`). It does not recompile the BBS Rust implementation and does not embed a second Rust runtime.
+
+Build and test the Node package locally (builds the shared core first, then the addon):
 
 ```sh
 make test-node

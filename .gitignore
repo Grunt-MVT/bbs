@@ -3,5 +3,6 @@ dist/
 .cargo-home*/
 node/dist/
 node/native/bbsplus_node.node
+node/native/build/
 node/native/target/
 node/node_modules/

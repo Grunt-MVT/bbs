@@ -17,6 +17,7 @@ DOCKER_IMAGE ?= libbbsplus-ci
 test:
 	CARGO_TARGET_DIR="$(CARGO_TARGET_DIR)" cargo test
 
+# Build the shared Rust/C core once per host target.
 .PHONY: build-release
 build-release:
 	CARGO_TARGET_DIR="$(CARGO_TARGET_DIR)" cargo build --release
@@ -25,27 +26,28 @@ build-release:
 test-go-ffi:
 	cd "$(ROOT_DIR)/go" && CGO_ENABLED=1 go test -v ./...
 
+# Thin N-API (C++) adapter statically linked against the prebuilt libbbsplus.a.
 .PHONY: build-node
-build-node:
-	cd "$(ROOT_DIR)/node" && npm ci && CARGO_TARGET_DIR="$(CARGO_TARGET_DIR)/node" npm run build
+build-node: build-release
+	cd "$(ROOT_DIR)/node" && npm ci && \
+		BBSPLUS_LIB_DIR="$(TARGET_DIR)" \
+		npm run build
 
 .PHONY: test-node
 test-node: build-node
 	cd "$(ROOT_DIR)/node" && npm test
 
 .PHONY: sync-node-native-linux-amd64
-sync-node-native-linux-amd64:
+sync-node-native-linux-amd64: build-node
 	test "$$(uname -s)" = "Linux" && test "$$(uname -m)" = "x86_64" || \
 		(echo "sync-node-native-linux-amd64 must run on Linux/amd64" && exit 1)
-	$(MAKE) build-node
 	test -f "$(NODE_NATIVE_LINUX_AMD64_DIR)/bbsplus_node.node" || \
 		(echo "missing $(NODE_NATIVE_LINUX_AMD64_DIR)/bbsplus_node.node" && exit 1)
 
 .PHONY: sync-node-native-darwin-arm64
-sync-node-native-darwin-arm64:
+sync-node-native-darwin-arm64: build-node
 	test "$$(uname -s)" = "Darwin" && test "$$(uname -m)" = "arm64" || \
 		(echo "sync-node-native-darwin-arm64 must run on Darwin/arm64" && exit 1)
-	$(MAKE) build-node
 	test -f "$(NODE_NATIVE_DARWIN_ARM64_DIR)/bbsplus_node.node" || \
 		(echo "missing $(NODE_NATIVE_DARWIN_ARM64_DIR)/bbsplus_node.node" && exit 1)
 
@@ -95,8 +97,9 @@ package-darwin-arm64: build-release
 	cp "$(ROOT_DIR)/include/bbs_ffi.h" "$(DIST_DIR)/$(DARWIN_ARTIFACT_NAME)/include/"
 	tar -C "$(DIST_DIR)" -czf "$(DIST_DIR)/$(DARWIN_ARTIFACT_NAME).tar.gz" "$(DARWIN_ARTIFACT_NAME)"
 
+# Core once, then Go + Node bindings against the same archive.
 .PHONY: ci
-ci: test sync-go-native-linux-amd64 test-go-ffi test-node package-linux-amd64
+ci: test build-release sync-go-native-linux-amd64 test-go-ffi sync-node-native-linux-amd64 package-linux-amd64
 
 .PHONY: docker-ci
 docker-ci:
