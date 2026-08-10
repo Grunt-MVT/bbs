@@ -66,20 +66,27 @@ make package-darwin-arm64
 
 ### Linux AMD64
 
-Preferred path in CI/Docker (glibc / Debian bookworm):
+Preferred path (one Debian bookworm Docker build of the shared core, Go native, Node native, tests, and tarball):
 
 ```sh
-make docker-ci
-make docker-artifacts
-make docker-sync-go-native-linux-amd64
+make docker-sync-linux-amd64
 ```
 
-On a Linux AMD64 host:
+That exports:
+
+- `go/native/linux_amd64/`
+- `node/native/linux_amd64/`
+- `dist/libbbsplus-linux-amd64.tar.gz`
+
+`make docker-artifacts` and `make docker-sync-go-native-linux-amd64` are aliases of the same unified target.
+
+On a Linux AMD64 host (without Docker):
 
 ```sh
 make sync-go-native-linux-amd64
 make test-go-ffi
 make sync-node-native-linux-amd64
+cd node && npm test
 make package-linux-amd64
 ```
 

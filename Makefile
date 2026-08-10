@@ -12,6 +12,7 @@ GO_NATIVE_DARWIN_ARM64_DIR := $(ROOT_DIR)/go/native/darwin_arm64
 NODE_NATIVE_LINUX_AMD64_DIR := $(ROOT_DIR)/node/native/linux_amd64
 NODE_NATIVE_DARWIN_ARM64_DIR := $(ROOT_DIR)/node/native/darwin_arm64
 DOCKER_IMAGE ?= libbbsplus-ci
+DOCKER_LINUX_OUTPUT_DIR := $(DIST_DIR)/docker-linux-amd64
 
 .PHONY: test
 test:
@@ -54,7 +55,7 @@ sync-node-native-darwin-arm64: build-node
 .PHONY: sync-go-native-linux-amd64
 sync-go-native-linux-amd64: build-release
 	test "$$(uname -s)" = "Linux" && test "$$(uname -m)" = "x86_64" || \
-		(echo "sync-go-native-linux-amd64 must run on Linux/amd64; use make docker-sync-go-native-linux-amd64" && exit 1)
+		(echo "sync-go-native-linux-amd64 must run on Linux/amd64; use make docker-sync-linux-amd64" && exit 1)
 	test -f "$(TARGET_DIR)/$(STATIC_LIB)" || \
 		(echo "missing $(TARGET_DIR)/$(STATIC_LIB)" && exit 1)
 	rm -rf "$(GO_NATIVE_LINUX_AMD64_DIR)"
@@ -76,9 +77,9 @@ sync-go-native-darwin-arm64: build-release
 .PHONY: package-linux-amd64
 package-linux-amd64: build-release
 	test "$$(uname -s)" = "Linux" && test "$$(uname -m)" = "x86_64" || \
-		(echo "package-linux-amd64 must run on Linux/amd64; use make docker-artifacts" && exit 1)
+		(echo "package-linux-amd64 must run on Linux/amd64; use make docker-sync-linux-amd64" && exit 1)
 	test -f "$(TARGET_DIR)/$(STATIC_LIB)" || \
-		(echo "missing $(TARGET_DIR)/$(STATIC_LIB); run this target on Linux/amd64 or use make docker-artifacts" && exit 1)
+		(echo "missing $(TARGET_DIR)/$(STATIC_LIB); run this target on Linux/amd64 or use make docker-sync-linux-amd64" && exit 1)
 	rm -rf "$(DIST_DIR)/$(LINUX_ARTIFACT_NAME)" "$(DIST_DIR)/$(LINUX_ARTIFACT_NAME).tar.gz"
 	mkdir -p "$(DIST_DIR)/$(LINUX_ARTIFACT_NAME)/lib" "$(DIST_DIR)/$(LINUX_ARTIFACT_NAME)/include"
 	cp "$(TARGET_DIR)/$(STATIC_LIB)" "$(DIST_DIR)/$(LINUX_ARTIFACT_NAME)/lib/"
@@ -97,22 +98,38 @@ package-darwin-arm64: build-release
 	cp "$(ROOT_DIR)/include/bbs_ffi.h" "$(DIST_DIR)/$(DARWIN_ARTIFACT_NAME)/include/"
 	tar -C "$(DIST_DIR)" -czf "$(DIST_DIR)/$(DARWIN_ARTIFACT_NAME).tar.gz" "$(DARWIN_ARTIFACT_NAME)"
 
-# Core once, then Go + Node bindings against the same archive.
+# Core once, then Go + Node bindings against the same archive; test Node without rebuilding.
 .PHONY: ci
-ci: test build-release sync-go-native-linux-amd64 test-go-ffi sync-node-native-linux-amd64 package-linux-amd64
+ci: test build-release sync-go-native-linux-amd64 test-go-ffi sync-node-native-linux-amd64
+	cd "$(ROOT_DIR)/node" && npm test
+	$(MAKE) package-linux-amd64
 
 .PHONY: docker-ci
 docker-ci:
 	docker build --platform linux/amd64 --target ci -t "$(DOCKER_IMAGE)" "$(ROOT_DIR)"
 
+# One Docker build: shared core, Go native, Node native, and release tarball.
+.PHONY: docker-sync-linux-amd64
+docker-sync-linux-amd64:
+	rm -rf "$(DOCKER_LINUX_OUTPUT_DIR)"
+	mkdir -p "$(DOCKER_LINUX_OUTPUT_DIR)" "$(DIST_DIR)"
+	docker buildx build --platform linux/amd64 --target linux-outputs \
+		--output type=local,dest="$(DOCKER_LINUX_OUTPUT_DIR)" "$(ROOT_DIR)"
+	test -d "$(DOCKER_LINUX_OUTPUT_DIR)/go-native" || \
+		(echo "missing Docker go-native export" && exit 1)
+	test -f "$(DOCKER_LINUX_OUTPUT_DIR)/node-native/bbsplus_node.node" || \
+		(echo "missing Docker node-native export" && exit 1)
+	test -f "$(DOCKER_LINUX_OUTPUT_DIR)/libbbsplus-linux-amd64.tar.gz" || \
+		(echo "missing Docker release tarball export" && exit 1)
+	rm -rf "$(GO_NATIVE_LINUX_AMD64_DIR)" "$(NODE_NATIVE_LINUX_AMD64_DIR)"
+	mkdir -p "$(GO_NATIVE_LINUX_AMD64_DIR)" "$(NODE_NATIVE_LINUX_AMD64_DIR)"
+	cp -R "$(DOCKER_LINUX_OUTPUT_DIR)/go-native/." "$(GO_NATIVE_LINUX_AMD64_DIR)/"
+	cp -R "$(DOCKER_LINUX_OUTPUT_DIR)/node-native/." "$(NODE_NATIVE_LINUX_AMD64_DIR)/"
+	cp "$(DOCKER_LINUX_OUTPUT_DIR)/libbbsplus-linux-amd64.tar.gz" "$(DIST_DIR)/$(LINUX_ARTIFACT_NAME).tar.gz"
+
+# Backward-compatible aliases: both reuse the unified Docker export (no second compile).
 .PHONY: docker-artifacts
-docker-artifacts:
-	rm -rf "$(DIST_DIR)"
-	mkdir -p "$(DIST_DIR)"
-	docker buildx build --platform linux/amd64 --target artifacts --output type=local,dest="$(DIST_DIR)" "$(ROOT_DIR)"
+docker-artifacts: docker-sync-linux-amd64
 
 .PHONY: docker-sync-go-native-linux-amd64
-docker-sync-go-native-linux-amd64:
-	rm -rf "$(GO_NATIVE_LINUX_AMD64_DIR)"
-	mkdir -p "$(GO_NATIVE_LINUX_AMD64_DIR)"
-	docker buildx build --platform linux/amd64 --target go-native --output type=local,dest="$(GO_NATIVE_LINUX_AMD64_DIR)" "$(ROOT_DIR)"
+docker-sync-go-native-linux-amd64: docker-sync-linux-amd64

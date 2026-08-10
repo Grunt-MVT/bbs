@@ -25,10 +25,15 @@ FROM base AS ci
 
 RUN make ci
 
-FROM scratch AS artifacts
+# Canonical Linux export: Go native, Node native, and release tarball from one make ci.
+FROM scratch AS linux-outputs
+COPY --from=ci /app/bbs/go/native/linux_amd64 /go-native
+COPY --from=ci /app/bbs/node/native/linux_amd64 /node-native
+COPY --from=ci /app/bbs/dist/libbbsplus-linux-amd64.tar.gz /libbbsplus-linux-amd64.tar.gz
 
+# Backward-compatible aliases for callers that still request these targets.
+FROM scratch AS artifacts
 COPY --from=ci /app/bbs/dist/libbbsplus-linux-amd64.tar.gz /libbbsplus-linux-amd64.tar.gz
 
 FROM scratch AS go-native
-
 COPY --from=ci /app/bbs/go/native/linux_amd64/ /
